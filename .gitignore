@@ -1,0 +1,20 @@
+# Dependências e build
+node_modules/
+dist/
+coverage/
+
+# Configuração local
+.env
+.env.*
+!.env.example
+
+# Dados privados de homologação
+private/
+homologacao-local/
+*.private.pdf
+*.private.xlsx
+
+# Sistema e editores
+.DS_Store
+Thumbs.db
+*.swp
