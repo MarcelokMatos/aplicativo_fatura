@@ -54,12 +54,16 @@ export function readBradescoColumns(line: PdfTextLine, columns: BradescoColumns)
     const monetary = (item: typeof items[number]) => /^-?[\d.]+,\d+-?$/.test(item.text.trim())
       && item.x + item.width >= columns.usdRate;
     const join = (selected: typeof items) => selected.map((item) => item.text).join(" ").trim();
+    const joinAmounts = (selected: typeof items) => selected.map((item) => {
+      const next = items[items.indexOf(item) + 1];
+      return `${item.text.trim()}${next?.text.trim() === "-" ? "-" : ""}`;
+    }).join(" ");
     return {
       date: join(items.filter((item) => item.x >= columns.date && item.x < historyStart)),
       history: join(items.filter((item) => item.x >= historyStart && item.x < columns.usdRate && !monetary(item))),
       originalCurrency: "", usd: "",
-      usdRate: join(items.filter((item) => monetary(item) && item.x + item.width < columns.brl)),
-      brl: join(items.filter((item) => monetary(item) && item.x + item.width >= columns.brl)),
+      usdRate: joinAmounts(items.filter((item) => monetary(item) && item.x + item.width < columns.brl)),
+      brl: joinAmounts(items.filter((item) => monetary(item) && item.x + item.width >= columns.brl)),
     };
   }
   return Object.fromEntries(COLUMN_NAMES.map((name, index) => {
@@ -73,5 +77,5 @@ export function readBradescoColumns(line: PdfTextLine, columns: BradescoColumns)
 
 // Pagamentos da fatura são administrativos; créditos/estornos reais ficam fora desta lista.
 export function isAdministrativeLine(text: string): boolean {
-  return /^(?:saldo anterior\b|pagamento (?:da fatura|por debito em conta)\b|total(?: para\b| geral\b| da fatura\b|$)|subtotal\b|limite\b|taxas informativas\b|mensagem administrativa\b)/.test(normalizeLayoutText(text));
+  return /^(?:saldo anterior\b|pagamento (?:da fatura|por debito em conta)\b|(?:pagto|pgto)\b|total(?: para\b| geral\b| da fatura\b|$)|subtotal\b|limite\b|taxas informativas\b|mensagem administrativa\b)/.test(normalizeLayoutText(text));
 }

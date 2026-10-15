@@ -121,8 +121,9 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
         columns = detected;
         continue;
       }
-      if (!/^\d{2}\/\d{2}(?!\/)\b/.test(line.text)) continue;
-      if (isAdministrativeLine(line.text.slice(5).trim())) continue;
+      const candidateText = line.text.trimStart();
+      if (!/^\d{2}\/\d{2}(?!\/)\b/.test(candidateText)) continue;
+      if (isAdministrativeLine(candidateText.slice(5).trim())) continue;
       if (!columns) {
         result.recognizedLayout = false;
         result.diagnostics.push({ severity: "error", code: "LAYOUT_NOT_RECOGNIZED", message: "Linha candidata fora de região com colunas reconhecidas.", page: line.page, line: line.line });
@@ -133,7 +134,7 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
       if (!/^\d{2}\/\d{2}$/.test(cells.date) || !cells.history) {
         const originalCurrencyX = columns.originalCurrency;
         const history = line.items.filter((item) => item.x < originalCurrencyX)
-          .map((item) => item.text).join(" ").replace(/^\d{2}\/\d{2}\s*/, "").trim();
+          .map((item) => item.text).join(" ").trim().replace(/^\d{2}\/\d{2}\s*/, "").trim();
         if (!history || isAdministrativeLine(history)) continue;
         result.recognizedLayout = false;
         result.diagnostics.push({ severity: "error", code: "LAYOUT_NOT_RECOGNIZED", message: "Linha candidata incompatível com os limites das colunas.", page: line.page, line: line.line });
