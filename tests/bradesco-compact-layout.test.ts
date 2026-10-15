@@ -64,11 +64,12 @@ describe("layout Bradesco compacto sintético", () => {
     expect(result.diagnostics.some(({ code }) => code === "MISSING_TRANSACTION_VALUE")).toBe(false);
   });
 
-  it("preserva candidata incompleta em continuação validada por outra linha completa", () => {
+  it("preserva candidata incompleta em continuação identificada por subtotal de cartão", () => {
     const pages = [...structuredClone(compactInvoice), syntheticPage(4, [
       [[20, "Bradesco Cartões"]],
       [[20, "06/01"], [70, "LOJA INVENTADA INCOMPLETA"]],
       [[20, "07/01"], [70, "LOJA INVENTADA DE CONTROLE"], [330, "30,00"]],
+      [[20, "Total para grupo inventado"], [330, "30,00"]],
     ])];
     const result = parseBradescoInvoice(pages);
     expect(result.recognizedLayout).toBe(true);
@@ -76,6 +77,31 @@ describe("layout Bradesco compacto sintético", () => {
     expect(result.transactions[4]).toMatchObject({ history: "LOJA INVENTADA INCOMPLETA", warnings: ["MISSING_TRANSACTION_VALUE"] });
     expect(result.transactions[4]!.value).toBeNaN();
     expect(result.transactions[5]).toMatchObject({ history: "LOJA INVENTADA DE CONTROLE", value: 30 });
+  });
+
+  it("recusa aviso datado com histórico e R$ alinhados em página timbrada sem marcador de tabela", () => {
+    const pages = [...structuredClone(compactInvoice), syntheticPage(4, [
+      [[20, "Bradesco Cartões"]],
+      [[20, "06/01"], [70, "AVISO INVENTADO PARA CONFERÊNCIA"], [330, "30,00"]],
+    ])];
+    const result = parseBradescoInvoice(pages);
+    expect(result).toMatchObject({ recognizedLayout: false, transactions: [] });
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: "LAYOUT_NOT_RECOGNIZED", page: 4 }));
+  });
+
+  it("herda continuação marcada contendo somente uma candidata incompleta sem apagar anteriores", () => {
+    const pages = [...structuredClone(compactInvoice), syntheticPage(4, [
+      [[20, "Bradesco Cartões"]],
+      [[20, "06/01"], [70, "LOJA INVENTADA INCOMPLETA"]],
+      [[20, "Total para grupo inventado"]],
+    ])];
+    const result = parseBradescoInvoice(pages);
+    expect(result.recognizedLayout).toBe(true);
+    expect(result.transactions).toHaveLength(5);
+    expect(result.transactions.slice(0, 4).map(({ value }) => value)).toEqual([100, -20, 30, 30]);
+    expect(result.transactions[4]).toMatchObject({ history: "LOJA INVENTADA INCOMPLETA", warnings: ["MISSING_TRANSACTION_VALUE"] });
+    expect(result.transactions[4]!.value).toBeNaN();
+    expect(result.diagnostics).toEqual([expect.objectContaining({ code: "MISSING_TRANSACTION_VALUE", page: 4 })]);
   });
 
   it("rejeita vencimentos separados concorrentes entre páginas sem sobrescrever", () => {

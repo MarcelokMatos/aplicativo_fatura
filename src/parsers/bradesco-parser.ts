@@ -43,20 +43,9 @@ function readSummaryAmount(line: PdfTextLine): number | null {
   return match ? parseBrDecimal(match[1]!) : null;
 }
 
-function hasCompactTableCandidate(lines: PdfTextLine[], columns: BradescoColumns, referenceDate: Date): boolean {
-  return lines.some((line) => {
-    if (!/^\d{2}\/\d{2}(?!\/)\b/.test(line.text) || isAdministrativeLine(line.text.slice(5).trim())) return false;
-    const cells = readBradescoColumns(line, columns);
-    if (!/^\d{2}\/\d{2}$/.test(cells.date) || !cells.history || isAdministrativeLine(cells.history)
-      || parseBrDecimal(cells.brl) === null) return false;
-    try {
-      inferTransactionDate(cells.date, referenceDate);
-      return true;
-    } catch (error) {
-      if (!(error instanceof RangeError)) throw error;
-      return false;
-    }
-  });
+function hasCompactTableMarker(lines: PdfTextLine[]): boolean {
+  // Subtotal administrativo da seção: independe da validade dos lançamentos.
+  return lines.some((line) => /^total para\b/.test(normalizeLayoutText(line.text)));
 }
 
 export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
@@ -125,7 +114,7 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
     const size = `${pageData.width}:${pageData.height}`;
     let columns: BradescoColumns | null = continuation.columns?.compact && continuation.size === size
       && page.some((line) => /\bbradesco\b/.test(normalizeLayoutText(line.text)))
-      && hasCompactTableCandidate(page, continuation.columns, referenceDate) ? continuation.columns : null;
+      && hasCompactTableMarker(page) ? continuation.columns : null;
     for (const [lineIndex, line] of page.entries()) {
       const detected = pageColumns[pageIndex]![lineIndex];
       if (detected) {
