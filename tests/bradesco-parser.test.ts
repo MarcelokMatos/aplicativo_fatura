@@ -128,4 +128,29 @@ describe("parseBradescoInvoice", () => {
     expect(result).toMatchObject({ recognizedLayout: false, transactions: [] });
     expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: "LAYOUT_NOT_RECOGNIZED", page: 2 }));
   });
+
+  it.each([
+    { dateX: 19, historyX: 80 },
+    { dateX: 20, historyX: 79 },
+  ])("diagnostica candidata que cruza o limite das colunas: %j", ({ dateX, historyX }) => {
+    const result = parseBradescoInvoice(singleTableInvoice([
+      [[20, "04/01"], [80, "LOJA SINTÉTICA VÁLIDA"], [565, "5,00"]],
+      [[dateX, "05/01"], [historyX, "LOJA SINTÉTICA DESLOCADA"], [565, "10,00"]],
+    ]));
+    expect(result.recognizedLayout).toBe(false);
+    expect(result.transactions).toEqual([]);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      severity: "error", code: "LAYOUT_NOT_RECOGNIZED", page: 1, line: 7,
+    }));
+  });
+
+  it.each([
+    { dateX: 19, historyX: 80 },
+    { dateX: 20, historyX: 79 },
+  ])("continua excluindo administrativo deslocado: %j", ({ dateX, historyX }) => {
+    const result = parseBradescoInvoice(singleTableInvoice([
+      [[dateX, "05/01"], [historyX, "PAGAMENTO DA FATURA"], [565, "10,00-"]],
+    ]));
+    expect(result).toMatchObject({ recognizedLayout: true, transactions: [], diagnostics: [] });
+  });
 });
