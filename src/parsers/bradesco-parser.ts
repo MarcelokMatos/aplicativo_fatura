@@ -27,7 +27,7 @@ export interface ParsedInvoice {
   recognizedLayout: boolean;
 }
 
-function readReferenceDate(line: PdfTextLine): string | null {
+function readReferenceDate(line: Pick<PdfTextLine, "text">): string | null {
   const match = /\b(\d{2})\/(\d{2})\/(\d{4})\b/.exec(line.text);
   if (!match) return null;
   const day = Number(match[1]);
@@ -44,7 +44,8 @@ function readSummaryAmount(line: PdfTextLine): number | null {
 }
 
 export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
-  const pageLines = [...pages].sort((a, b) => a.pageNumber - b.pageNumber).map((page) => groupTextItemsIntoLines(page));
+  const sortedPages = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
+  const pageLines = sortedPages.map((page) => groupTextItemsIntoLines(page));
   const lines = pageLines.flat();
   const result: ParsedInvoice = {
     transactions: [],
@@ -52,7 +53,8 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
     diagnostics: [],
     recognizedLayout: false,
   };
-  if (!lines.some((line) => /\bbradesco\b/.test(normalizeLayoutText(line.text))) || !lines.some((line) => detectBradescoColumns(line))) {
+  const pageColumns = pageLines.map((page) => page.map((line, index) => detectBradescoColumns(line, page[index - 1])));
+  if (!lines.some((line) => /\bbradesco\b/.test(normalizeLayoutText(line.text))) || !pageColumns.some((page) => page.some(Boolean))) {
     result.diagnostics.push({ severity: "error", code: "LAYOUT_NOT_RECOGNIZED", message: "Marcadores essenciais do layout Bradesco ausentes." });
     return result;
   }
@@ -70,20 +72,36 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
   }
   if (result.diagnostics.some((diagnostic) => diagnostic.code === "INVALID_REFERENCE_DATE")) return result;
   if (!result.summary.referenceDate) {
+    for (const page of pages) {
+      for (const label of page.items.filter((item) => normalizeLayoutText(item.text) === "vencimento")) {
+        const candidates = page.items.filter((item) => label.y > item.y && label.y - item.y <= 40
+          && Math.abs(item.x - label.x) <= 30 && /^\d{2}\/\d{2}\/\d{4}$/.test(item.text.trim()));
+        if (candidates.length === 1) {
+          const referenceDate = readReferenceDate({ text: candidates[0]!.text });
+          if (referenceDate) result.summary.referenceDate = referenceDate;
+        }
+      }
+    }
+  }
+  if (!result.summary.referenceDate) {
     result.diagnostics.push({ severity: "error", code: "REFERENCE_DATE_MISSING", message: "Data de referência ausente; não é possível inferir o ano dos lançamentos." });
     return result;
   }
   const referenceDate = new Date(`${result.summary.referenceDate}T00:00:00Z`);
 
-  for (const page of pageLines) {
-    let columns: BradescoColumns | null = null;
-    for (const line of page) {
-      const detected = detectBradescoColumns(line);
+  const continuation: { columns: BradescoColumns | null; size: string } = { columns: null, size: "" };
+  for (const [pageIndex, page] of pageLines.entries()) {
+    const pageData = sortedPages[pageIndex]!;
+    const size = `${pageData.width}:${pageData.height}`;
+    let columns: BradescoColumns | null = continuation.columns?.compact && continuation.size === size
+      && page.some((line) => /\bbradesco\b/.test(normalizeLayoutText(line.text))) ? continuation.columns : null;
+    for (const [lineIndex, line] of page.entries()) {
+      const detected = pageColumns[pageIndex]![lineIndex];
       if (detected) {
         columns = detected;
         continue;
       }
-      if (!/^\d{2}\/\d{2}\b/.test(line.text)) continue;
+      if (!/^\d{2}\/\d{2}(?!\/)\b/.test(line.text)) continue;
       if (isAdministrativeLine(line.text.slice(5).trim())) continue;
       if (!columns) {
         result.recognizedLayout = false;
@@ -133,6 +151,8 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
         source: { page: line.page, line: line.line }, warnings,
       });
     }
+    continuation.columns = columns;
+    continuation.size = size;
   }
   // Uma página incompatível invalida a extração inteira: evita sucesso parcial silencioso.
   if (!result.recognizedLayout) result.transactions = [];
