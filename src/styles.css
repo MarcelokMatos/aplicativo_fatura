@@ -14,7 +14,7 @@ body {
 }
 
 main {
-  max-width: 48rem;
+  max-width: 90rem;
   margin-inline: auto;
   padding: 2rem 1rem;
 }
@@ -47,3 +47,27 @@ input {
   outline: 3px solid #195c9a;
   outline-offset: 3px;
 }
+
+button, textarea { font: inherit; }
+button { cursor: pointer; padding: 0.6rem 0.9rem; border: 1px solid #687b8a; border-radius: 0.4rem; background: #fff; color: #182b3a; }
+button:disabled { cursor: default; opacity: 0.6; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 1rem; }
+.summary div { padding: 0.7rem; background: #fff; border-radius: 0.4rem; }
+dt { font-size: 0.9rem; }
+dd { font-weight: 600; margin: 0.25rem 0 0; }
+.table-scroll { overflow-x: auto; max-width: 100%; border: 1px solid #687b8a; }
+table { border-collapse: collapse; width: 100%; min-width: 76rem; background: #fff; }
+caption { text-align: left; padding: 0.75rem; }
+th { position: sticky; top: 0; background: #e8eef3; text-align: left; }
+th, td { padding: 0.6rem; border-bottom: 1px solid #c5d0d8; vertical-align: top; }
+td input { width: 8rem; border: 1px solid #687b8a; border-radius: 0.2rem; padding: 0.4rem; margin: 0; }
+td:nth-child(2) input { width: 17rem; }
+td button { margin-top: 0.5rem; font-size: 0.85rem; }
+.warning { color: #752500; }
+.success { color: #155c2c; font-weight: 600; }
+.suspect { background: #fff4dd; }
+[aria-invalid="true"] { border: 2px solid #a73616; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
+.diagnostics { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+textarea { width: 100%; min-height: 12rem; white-space: pre; }
+@media (max-width: 40rem) { main { padding: 1rem 0.75rem; } .upload-area { padding: 1rem; } .actions button { min-height: 2.75rem; } }
