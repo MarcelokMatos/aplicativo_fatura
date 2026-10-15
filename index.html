@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fatura do cartão</title>
+  </head>
+  <body>
+    <main id="app">
+      <h1>Fatura do cartão</h1>
+      <p>Seu PDF é processado somente neste aparelho</p>
+      <section class="upload-area" aria-labelledby="upload-title">
+        <h2 id="upload-title">Selecionar fatura</h2>
+        <label for="invoice-file">Arquivo PDF da fatura</label>
+        <input
+          id="invoice-file"
+          type="file"
+          accept="application/pdf"
+          aria-describedby="upload-status"
+          disabled
+        />
+        <p id="upload-status">A leitura de faturas ainda não está disponível.</p>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #182b3a;
+  background: #f4f6f8;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 48rem;
+  margin-inline: auto;
+  padding: 2rem 1rem;
+}
+
+h1,
+h2 {
+  line-height: 1.2;
+}
+
+.upload-area {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border: 2px dashed #687b8a;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+label,
+input {
+  display: block;
+}
+
+input {
+  max-width: 100%;
+  margin-top: 0.5rem;
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid #195c9a;
+  outline-offset: 3px;
+}
