@@ -44,29 +44,43 @@ export function renderApp(root: HTMLElement, controller: InvoiceController) {
   upload.append(title, label, picker, status);
   const result = element("section", "");
   result.setAttribute("aria-label", "Revisão da extração");
+  const fileName = element("p", "");
+  const diagnostics = element("pre", "");
+  diagnostics.className = "warning diagnostics";
+  diagnostics.setAttribute("aria-label", "Diagnósticos técnicos selecionáveis");
+  diagnostics.tabIndex = 0;
+  const review = element("div", "");
+  const summary = element("dl", "");
+  summary.className = "summary";
+  const reconciliation = element("p", "");
+  const table = transactionTable(controller);
+  const actions = element("div", "");
+  actions.className = "actions";
+  const copy = action("Copiar tabela", () => { if (table.commitDrafts()) void controller.requestCopy(); });
+  const confirm = action("Copiar mesmo assim", () => { if (table.commitDrafts()) void controller.confirmCopy(); });
+  actions.append(action("Restaurar extração original", () => controller.restoreOriginal()), copy, confirm);
+  const copyStatus = element("p", "");
+  copyStatus.setAttribute("role", "status");
+  copyStatus.setAttribute("aria-live", "polite");
+  const fallbackHost = element("div", "");
+  review.append(summary, reconciliation, table.element, actions, copyStatus, fallbackHost);
+  result.append(fileName, diagnostics, review);
   root.append(upload, result);
   return controller.subscribe((state) => {
-    const active = document.activeElement;
-    const editorLabel = active instanceof HTMLInputElement && result.contains(active)
-      ? active.getAttribute("aria-label") : null;
-    const selection = active instanceof HTMLInputElement ? active.selectionStart : null;
-    result.replaceChildren();
     const messages = { idle: "Selecione um PDF para começar.", reading: "Lendo PDF localmente…",
       ready: "Extração disponível para revisão.", unsupported: "Modelo não suportado ou PDF sem texto extraível.",
       error: "Falha ao processar o arquivo." };
     status.textContent = messages[state.status];
-    if (state.fileName) result.append(element("p", `Arquivo: ${state.fileName}`));
-    if (state.diagnostics.length) {
-      const diagnostics = element("pre", state.diagnostics.map((item) => `${item.code}: ${item.message}`).join("\n"));
-      diagnostics.className = "warning diagnostics";
-      diagnostics.setAttribute("aria-label", "Diagnósticos técnicos selecionáveis");
-      diagnostics.tabIndex = 0;
-      result.append(diagnostics);
-    }
+    fileName.textContent = state.fileName ? `Arquivo: ${state.fileName}` : "";
+    fileName.hidden = !state.fileName;
+    diagnostics.textContent = state.diagnostics.map((item) => `${item.code}: ${item.message}`).join("\n");
+    diagnostics.hidden = !state.diagnostics.length;
+    table.update(state.transactions, state.rowIds, state.reviewVersion);
+    review.hidden = state.status !== "ready" || !state.reconciliation;
+    if (state.copyStatus !== "fallback") fallbackHost.replaceChildren();
     if (state.status !== "ready" || !state.reconciliation) return;
     const totals = state.reconciliation;
-    const summary = element("dl", "");
-    summary.className = "summary";
+    summary.replaceChildren();
     const facts = [ ["Páginas", String(state.pageCount)], ["Lançamentos", String(state.transactions.length)],
       ["Positivos", money(totals.positiveTotal)], ["Negativos", money(totals.negativeTotal)],
       ["Líquido", money(totals.netTotal)], ["Controle", money(totals.controlTotal)], ["Diferença", money(totals.difference)] ];
@@ -77,33 +91,20 @@ export function renderApp(root: HTMLElement, controller: InvoiceController) {
     }
     const suspicious = state.transactions.some((row) => transactionIssues(row).length > 0) || state.diagnostics.length > 0;
     const balanced = totals.isBalanced && state.transactions.length > 0;
-    const reconciliation = element("p", !balanced ? "Não conciliado. Revise os valores e a diferença."
-      : suspicious ? "Totais coincidem, mas há dados suspeitos. Revise os avisos." : "Conciliado");
-    reconciliation.className = !balanced || suspicious ? "warning" : "success";
-    const table = transactionTable(state.transactions, controller);
-    const actions = element("div", "");
-    actions.className = "actions";
-    const copy = action("Copiar tabela", () => { if (table.commitDrafts()) void controller.requestCopy(); });
+    reconciliation.textContent = !balanced ? "Não conciliado. Revise os valores e a diferença."
+      : table.hasDrafts() ? "Há edição pendente. Confirme as células para atualizar os totais."
+      : suspicious ? "Totais coincidem, mas há dados suspeitos. Revise os avisos." : "Conciliado";
+    reconciliation.className = !balanced || suspicious || table.hasDrafts() ? "warning" : "success";
     copy.disabled = !state.transactions.length || state.copyStatus === "copying";
-    actions.append(action("Restaurar extração original", () => controller.restoreOriginal()), copy);
-    result.append(summary, reconciliation, table.element, actions);
-    const copyStatus = element("p", "");
-    copyStatus.setAttribute("role", "status");
-    copyStatus.setAttribute("aria-live", "polite");
+    confirm.hidden = state.copyStatus !== "confirmation-required";
+    copyStatus.textContent = "";
+    copyStatus.className = "";
     if (state.copyStatus === "confirmation-required") {
       copyStatus.className = "warning";
       copyStatus.textContent = "Há divergências ou dados suspeitos. A saída pode estar incompleta. Confirme a cópia após revisar.";
-      actions.append(action("Copiar mesmo assim", () => { if (table.commitDrafts()) void controller.confirmCopy(); }));
     }
-    if (state.copyStatus === "copying") copyStatus.textContent = "Copiando tabela…";
+    if (state.copyStatus === "copying") copyStatus.textContent = "Cópia em andamento. Aguarde para copiar outra revisão.";
     if (state.copyStatus === "copied") copyStatus.textContent = "Tabela copiada. Cole os valores na sua planilha.";
-    result.append(copyStatus);
-    if (editorLabel) {
-      const editor = Array.from(result.querySelectorAll("input"))
-        .find((candidate) => candidate.getAttribute("aria-label") === editorLabel);
-      editor?.focus();
-      if (selection !== null) editor?.setSelectionRange(selection, selection);
-    }
     if (state.copyStatus === "fallback") {
       copyStatus.textContent = "Cópia automática indisponível. Copie manualmente o texto selecionado.";
       const fallbackLabel = element("label", "Tabela tabulada para cópia manual");
@@ -112,7 +113,7 @@ export function renderApp(root: HTMLElement, controller: InvoiceController) {
       fallback.id = "clipboard-fallback";
       fallback.readOnly = true;
       fallback.value = state.copyText;
-      result.append(fallbackLabel, fallback);
+      fallbackHost.replaceChildren(fallbackLabel, fallback);
       fallback.focus();
       fallback.select();
     }

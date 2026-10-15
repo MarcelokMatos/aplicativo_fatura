@@ -158,6 +158,33 @@ describe("controlador de revisão local", () => {
     expect(copy.mock.calls[1]?.[0]).toMatchObject([{ value: 20 }]);
   });
 
+  it("bloqueia nova escrita enquanto a cópia anterior ainda pode terminar, mesmo após edição", async () => {
+    let clipboard = "";
+    const finish: Array<() => void> = [];
+    const copy = vi.fn((rows: InvoiceTransaction[]) => new Promise<{ copied: boolean; text: string }>((resolve) => {
+      const text = rows[0]!.history;
+      finish.push(() => { clipboard = text; resolve({ copied: true, text }); });
+    }));
+    const controller = createInvoiceController({ extract: async () => pages, parse: parseBradescoInvoice, copy });
+    await controller.loadFile(file());
+    const first = controller.requestCopy();
+    controller.editCell(0, "history", "REVISÃO SINTÉTICA B");
+    const blocked = controller.requestCopy();
+    expect(copy).toHaveBeenCalledTimes(1);
+    expect(controller.getState().copyStatus).toBe("copying");
+    await blocked;
+    finish[0]!();
+    await first;
+    expect(clipboard).toBe("COMPRA SINTÉTICA");
+    expect(controller.getState().copyStatus).toBe("idle");
+    const latest = controller.requestCopy();
+    expect(copy).toHaveBeenCalledTimes(2);
+    finish[1]!();
+    await latest;
+    expect(clipboard).toBe("REVISÃO SINTÉTICA B");
+    expect(controller.getState()).toMatchObject({ copyStatus: "copied", copyText: "REVISÃO SINTÉTICA B" });
+  });
+
   it.each(["date", "warnings", "value"])("extração suspeita por %s exige confirmação", async (field) => {
     const invoice = parsed();
     if (field === "date") invoice.transactions[0]!.date = "";

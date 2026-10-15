@@ -7,16 +7,24 @@ import { singleTableInvoice } from "./fixtures/bradesco-invoice.synthetic";
 
 const pages = singleTableInvoice([[[20, "03/01"], [80, "COMPRA SINTÉTICA"], [565, "470,00"]]]);
 const file = { name: "sintetica.pdf", type: "application/pdf", arrayBuffer: async () => new ArrayBuffer(1) } as File;
-function mount(options: { unbalanced?: boolean; suspect?: boolean; fallback?: boolean } = {}) {
-  const parsed = parseBradescoInvoice(pages);
+function mount(options: { unbalanced?: boolean; suspect?: boolean; fallback?: boolean; secondRow?: boolean;
+  waitForClipboard?: Promise<void> } = {}) {
+  const sourcePages = options.secondRow ? singleTableInvoice([
+    [[20, "03/01"], [80, "COMPRA SINTÉTICA A"], [565, "235,00"]],
+    [[20, "04/01"], [80, "COMPRA SINTÉTICA B"], [565, "235,00"]],
+  ]) : pages;
+  const parsed = parseBradescoInvoice(sourcePages);
   if (options.unbalanced) parsed.summary.purchasesAndDebits = 999;
   if (options.suspect) {
     parsed.transactions[0]!.date = "";
     parsed.transactions[0]!.value = Number.NaN;
     parsed.transactions[0]!.warnings = ["MISSING_TRANSACTION_VALUE"];
   }
-  const writeText = vi.fn(async (_text: string) => { if (options.fallback) throw new Error("denied"); });
-  const controller = createInvoiceController({ extract: async () => pages, parse: () => parsed,
+  const writeText = vi.fn(async (_text: string) => {
+    await options.waitForClipboard;
+    if (options.fallback) throw new Error("denied");
+  });
+  const controller = createInvoiceController({ extract: async () => sourcePages, parse: () => parsed,
     copy: (rows) => copyTransactions(rows, { writeText }) });
   const root = document.createElement("main");
   document.body.append(root);
@@ -72,6 +80,124 @@ describe("fluxo visual da fatura", () => {
     editor.dispatchEvent(new Event("change", { bubbles: true }));
     expect(controller.getState().transactions[0]?.value).toBe(469.99);
     expect(root.textContent).toContain("-0,01");
+  });
+
+  it("preserva rascunho inválido após editar outra célula e continua bloqueando cópia", async () => {
+    const { controller, writeText } = mount();
+    await controller.loadFile(file);
+    const amount = input("R$, linha 1");
+    amount.value = "12,";
+    amount.dispatchEvent(new Event("input", { bubbles: true }));
+    amount.dispatchEvent(new Event("change", { bubbles: true }));
+    const history = input("Histórico, linha 1");
+    history.value = "REVISÃO SINTÉTICA";
+    history.dispatchEvent(new Event("input", { bubbles: true }));
+    history.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(input("R$, linha 1").value).toBe("12,");
+    expect(input("R$, linha 1").getAttribute("aria-invalid")).toBe("true");
+    button("Copiar tabela").click();
+    expect(writeText).not.toHaveBeenCalled();
+    const corrected = input("R$, linha 1");
+    corrected.value = "470,00";
+    corrected.dispatchEvent(new Event("input", { bubbles: true }));
+    corrected.dispatchEvent(new Event("change", { bubbles: true }));
+    button("Copiar tabela").click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect(writeText.mock.calls[0]?.[0]).toContain("REVISÃO SINTÉTICA");
+  });
+
+  it("mantém o botão alvo conectado quando change ocorre entre mousedown e click", async () => {
+    const { controller, writeText } = mount();
+    await controller.loadFile(file);
+    const editor = input("Histórico, linha 1");
+    editor.focus();
+    editor.value = "EDIÇÃO ANTES DO CLIQUE";
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    const target = button("Copiar tabela");
+    target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    editor.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(target.isConnected).toBe(true);
+    target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    target.click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect(writeText.mock.calls[0]?.[0]).toContain("EDIÇÃO ANTES DO CLIQUE");
+  });
+
+  it("preserva o rascunho da linha restante ao excluir outra e limpa ao restaurar", async () => {
+    const { controller, writeText } = mount({ secondRow: true });
+    await controller.loadFile(file);
+    const amount = input("R$, linha 2");
+    amount.value = "12,";
+    amount.dispatchEvent(new Event("input", { bubbles: true }));
+    amount.dispatchEvent(new Event("change", { bubbles: true }));
+    button("Excluir linha 1").click();
+    expect(input("R$, linha 1").value).toBe("12,");
+    expect(input("R$, linha 1").getAttribute("aria-invalid")).toBe("true");
+    button("Copiar tabela").click();
+    expect(writeText).not.toHaveBeenCalled();
+    controller.restoreOriginal();
+    expect(input("R$, linha 1").value).toBe("235");
+    expect(input("R$, linha 2").value).toBe("235");
+    button("Copiar tabela").click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+  });
+
+  it("descarta rascunho apenas da linha excluída e limpa todos em novo upload", async () => {
+    const { controller, writeText } = mount({ secondRow: true });
+    await controller.loadFile(file);
+    const amount = input("R$, linha 1");
+    amount.value = "12,";
+    amount.dispatchEvent(new Event("input", { bubbles: true }));
+    button("Excluir linha 1").click();
+    expect(input("R$, linha 1").value).toBe("235");
+    button("Copiar tabela").click();
+    button("Copiar mesmo assim").click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    const remaining = input("R$, linha 1");
+    remaining.value = "12,";
+    remaining.dispatchEvent(new Event("input", { bubbles: true }));
+    await controller.loadFile(file);
+    expect(input("R$, linha 1").value).toBe("235");
+    expect(input("R$, linha 2").value).toBe("235");
+    button("Copiar tabela").click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+  });
+
+  it("desabilita nova cópia durante escrita pendente e não anuncia sucesso de revisão obsoleta", async () => {
+    let finish!: () => void;
+    const waitForClipboard = new Promise<void>((resolve) => { finish = resolve; });
+    const { root, controller, writeText } = mount({ waitForClipboard });
+    await controller.loadFile(file);
+    button("Copiar tabela").click();
+    const history = input("Histórico, linha 1");
+    history.value = "REVISÃO DURANTE CÓPIA";
+    history.dispatchEvent(new Event("input", { bubbles: true }));
+    history.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(button("Copiar tabela").disabled).toBe(true);
+    expect(root.textContent).toContain("Aguarde para copiar outra revisão");
+    button("Copiar tabela").click();
+    expect(writeText).toHaveBeenCalledTimes(1);
+    finish();
+    await vi.waitFor(() => expect(button("Copiar tabela").disabled).toBe(false));
+    expect(root.textContent).not.toContain("Tabela copiada");
+    button("Copiar tabela").click();
+    await vi.waitFor(() => expect(root.textContent).toContain("Tabela copiada"));
+    expect(writeText).toHaveBeenCalledTimes(2);
+    expect(writeText.mock.calls[1]?.[0]).toContain("REVISÃO DURANTE CÓPIA");
+  });
+
+  it("iniciar rascunho invalida sucesso anterior mesmo antes do change", async () => {
+    const { root, controller, writeText } = mount();
+    await controller.loadFile(file);
+    button("Copiar tabela").click();
+    await vi.waitFor(() => expect(root.textContent).toContain("Tabela copiada"));
+    const amount = input("R$, linha 1");
+    amount.value = "12,";
+    amount.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(root.textContent).not.toContain("Tabela copiada");
+    expect(root.textContent).not.toContain("Conciliado");
+    button("Copiar tabela").click();
+    expect(writeText).toHaveBeenCalledTimes(1);
   });
 
   it("exclui somente por botão explícito e restaura a extração original", async () => {

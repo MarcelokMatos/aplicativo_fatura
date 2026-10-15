@@ -16,6 +16,8 @@ export interface InvoiceAppState {
   reconciliation: ReconciliationResult | null;
   diagnostics: ParserDiagnostic[];
   originalTransactions: InvoiceTransaction[];
+  rowIds: number[];
+  reviewVersion: number;
   copyStatus: "idle" | "confirmation-required" | "copying" | "copied" | "fallback";
   copyText: string;
 }
@@ -68,28 +70,34 @@ export function transactionIssues(row: InvoiceTransaction): string[] {
 export function createInvoiceController(dependencies: Dependencies) {
   let state: InvoiceAppState = {
     status: "idle", fileName: null, pageCount: 0, transactions: [], originalTransactions: [],
-    reconciliation: null, diagnostics: [], copyStatus: "idle", copyText: "",
+    reconciliation: null, diagnostics: [], rowIds: [], reviewVersion: 0, copyStatus: "idle", copyText: "",
   };
   let controlTotal: number | null = null;
   let revision = 0;
+  let copyInFlight = false;
   const listeners = new Set<(state: InvoiceAppState) => void>();
   const getState = (): InvoiceAppState => ({ ...state,
     transactions: cloneRows(state.transactions), originalTransactions: cloneRows(state.originalTransactions),
     reconciliation: state.reconciliation ? { ...state.reconciliation } : null,
     diagnostics: state.diagnostics.map((item) => ({ ...item })),
+    rowIds: [...state.rowIds],
   });
   const emit = () => { for (const listener of listeners) listener(getState()); };
-  function changed() {
+  function invalidateCopy() {
     revision += 1;
-    state.copyStatus = "idle";
+    state.copyStatus = copyInFlight ? "copying" : "idle";
     state.copyText = "";
+  }
+  function changed() {
+    invalidateCopy();
     state.reconciliation = reconcileInvoice(state.transactions, controlTotal);
     emit();
   }
   async function loadFile(file: File) {
     const request = ++revision;
     state = { status: "reading", fileName: file.name, pageCount: 0, transactions: [],
-      originalTransactions: [], reconciliation: null, diagnostics: [], copyStatus: "idle", copyText: "" };
+      originalTransactions: [], reconciliation: null, diagnostics: [], rowIds: [], reviewVersion: state.reviewVersion + 1,
+      copyStatus: copyInFlight ? "copying" : "idle", copyText: "" };
     if ((file.type && file.type !== "application/pdf") || !/\.pdf$/i.test(file.name)) {
       state.status = "error";
       state.diagnostics = [{ severity: "error", code: "PDF_REQUIRED", message: "Selecione um arquivo PDF." }];
@@ -111,6 +119,7 @@ export function createInvoiceController(dependencies: Dependencies) {
         state.status = "ready";
         state.transactions = cloneRows(invoice.transactions);
         state.originalTransactions = cloneRows(invoice.transactions);
+        state.rowIds = invoice.transactions.map((_row, index) => index);
         controlTotal = invoice.summary.purchasesAndDebits ?? invoice.summary.invoiceTotal;
         state.reconciliation = reconcileInvoice(state.transactions, controlTotal);
       }
@@ -119,6 +128,7 @@ export function createInvoiceController(dependencies: Dependencies) {
       state.status = "error";
       state.transactions = [];
       state.originalTransactions = [];
+      state.rowIds = [];
       state.reconciliation = null;
       // Error messages from PDF libraries can contain document data. Use a safe technical code.
       state.diagnostics = [{ severity: "error", code: "PDF_PROCESSING_FAILED",
@@ -142,19 +152,31 @@ export function createInvoiceController(dependencies: Dependencies) {
   async function performCopy() {
     const request = revision;
     const rows = cloneRows(state.transactions);
+    copyInFlight = true;
     state.copyStatus = "copying";
     emit();
     let result: { copied: boolean; text: string };
     try { result = await (dependencies.copy ?? copyTransactions)(rows); }
     catch { result = { copied: false, text: serializeTransactionsForClipboard(rows) }; }
-    if (request !== revision) return;
+    copyInFlight = false;
+    if (request !== revision) {
+      state.copyStatus = "idle";
+      state.copyText = "";
+      emit();
+      return;
+    }
     state.copyStatus = result.copied ? "copied" : "fallback";
     state.copyText = result.text;
     emit();
   }
-  function canCopy() { return state.status === "ready" && state.transactions.length > 0 && state.copyStatus !== "copying"; }
+  function canCopy() { return state.status === "ready" && state.transactions.length > 0 && !copyInFlight; }
   return {
     getState, loadFile, editCell,
+    draftChanged() {
+      if (state.status !== "ready") return;
+      invalidateCopy();
+      emit();
+    },
     subscribe(listener: (state: InvoiceAppState) => void) {
       listeners.add(listener);
       listener(getState());
@@ -163,11 +185,14 @@ export function createInvoiceController(dependencies: Dependencies) {
     deleteRow(index: number) {
       if (state.status !== "ready" || !state.transactions[index]) return;
       state.transactions.splice(index, 1);
+      state.rowIds.splice(index, 1);
       changed();
     },
     restoreOriginal() {
       if (state.status !== "ready") return;
       state.transactions = cloneRows(state.originalTransactions);
+      state.rowIds = state.originalTransactions.map((_row, index) => index);
+      state.reviewVersion += 1;
       changed();
     },
     async requestCopy() {
