@@ -65,7 +65,12 @@ export function readBradescoColumns(line: PdfTextLine, columns: BradescoColumns)
     const beforeLocality = historyItems.slice(0, localityIndex);
     const separated = locality && localityIndex > 0 && beforeLocality.every((item) =>
       locality.x - (item.x + item.width) > Math.max(Math.abs(item.height), Math.abs(locality.height)));
-    const history = separated
+    const last = historyItems.at(-1);
+    const ambiguousInstallment = separated && last && installment(last)
+      && historyItems.slice(localityIndex, -1).some((item) =>
+        last.x - (item.x + item.width) <= Math.max(Math.abs(item.height), Math.abs(last.height)));
+    const historyAmbiguous = (!!locality && !separated) || !!ambiguousInstallment;
+    const history = separated && !historyAmbiguous
       ? [...beforeLocality, ...historyItems.slice(-1).filter(installment)]
       : historyItems;
     const joinAmounts = (selected: typeof items) => selected.map((item) => {
@@ -83,7 +88,7 @@ export function readBradescoColumns(line: PdfTextLine, columns: BradescoColumns)
     return {
       date: join(items.filter((item) => item.x >= columns.date && item.x < historyStart)),
       history: join(history),
-      historyAmbiguous: !!locality && !separated,
+      historyAmbiguous,
       originalCurrency: "", usd: "",
       usdRate: joinAmounts(items.filter((item) => monetary(item) && item.x + item.width < columns.brl)),
       brl: joinAmounts(items.filter((item) => monetary(item) && item.x + item.width >= columns.brl)),

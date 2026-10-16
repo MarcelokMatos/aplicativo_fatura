@@ -169,7 +169,9 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
       const brl = amount("brl");
       const value = chooseTransactionValue(brl, originalCurrency);
       if (value === null) diagnose("MISSING_TRANSACTION_VALUE", "Lançamento sem valor utilizável; revise a linha.");
-      const installment = extractInstallment(cells.history);
+      const installment = cells.historyAmbiguous
+        ? { history: cells.history, installment: "1/1" }
+        : extractInstallment(cells.history);
       result.transactions.push({
         date, ...installment, originalCurrency, usd, usdRate, brl, value: value ?? Number.NaN,
         source: { page: line.page, line: line.line }, warnings,
