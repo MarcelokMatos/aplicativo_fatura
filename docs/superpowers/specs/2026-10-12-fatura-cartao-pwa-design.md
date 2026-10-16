@@ -157,6 +157,8 @@ Estornos e créditos que sejam lançamentos reais devem permanecer com sinal neg
 - Exemplos sintéticos: `SESI FARMACIA FM 57402/02` resulta em `Histórico = SESI FARMACIA FM 574` e `Parcela = 2/2`; `ASSOCIACAO CONGREGAC06/10` resulta em `Histórico = ASSOCIACAO CONGREGAC` e `Parcela = 6/10`.
 - Não tratar qualquer barra presente em um nome ou texto como parcela.
 - Barras internas ou sufixos numéricos inválidos, não terminais ou fora da região estruturada de parcela devem permanecer no histórico.
+- Um sufixo terminal com aparência de parcela, mas incompleto ou inválido, deve permanecer integralmente no histórico, usar `1/1` provisoriamente e marcar a linha como suspeita com diagnóstico explícito; a interface editável permite a correção manual.
+- Nunca completar um dígito ausente a partir de outra compra, do nome do estabelecimento ou de recorrências na mesma fatura. Exemplo sintético: `LOJA INVENTADA06/0` permanece no histórico, recebe `Parcela = 1/1` e exige revisão.
 - Normalizar zeros à esquerda quando necessário.
 - Usar `1/1` quando não houver parcelamento reconhecido.
 - Não calcular nem projetar a próxima parcela na V1.
@@ -260,6 +262,7 @@ Inclusão manual de novas linhas não faz parte da V1. Uma linha ausente deve se
 - Inferência de ano.
 - Reconhecimento de parcelas.
 - Parcela terminal colada à descrição, inclusive com dígitos anteriores que permanecem no histórico.
+- Sufixo terminal semelhante a parcela, porém incompleto ou inválido, preservado e marcado como suspeito sem inferência.
 - Falso positivo de barra no histórico.
 - Coalescência entre `R$` e `Moeda de origem`.
 - Serialização tabulada.
@@ -294,7 +297,7 @@ A V1 estará homologada quando:
 1. A fatura fornecida gerar todos os lançamentos esperados e nenhum registro administrativo.
 2. O total líquido extraído reconciliar com a fatura dentro de R$ 0,01.
 3. Estornos e créditos preservarem o sinal.
-4. Parcelas forem reconhecidas corretamente sem falsos positivos conhecidos, e o histórico contiver somente o estabelecimento ou evento, sem localidade estrutural separada.
+4. Parcelas forem reconhecidas corretamente sem falsos positivos conhecidos; sufixos incompletos ou inválidos forem preservados e sinalizados para revisão; e o histórico contiver somente o estabelecimento ou evento, sem localidade estrutural separada.
 5. A tabela copiada puder ser colada sem reorganização das colunas e sem converter `Parcela` em data.
 6. O fluxo completo funcionar em pelo menos um Android e um computador.
 7. O PDF não aparecer em requisições de rede nem em armazenamento persistente.
