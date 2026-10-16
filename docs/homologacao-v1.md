@@ -23,8 +23,8 @@ Ambiente verificado: Node.js `v24.21.0` e npm `11.19.0`.
 
 | Comando executado | Resultado |
 |---|---|
-| `npm test -- --run tests/verify-local-invoice.test.ts` | 9/9 aprovados |
-| `npm test -- --run` | 14 arquivos, 236/236 aprovados |
+| `npm test -- --run tests/verify-local-invoice.test.ts` | 10/10 aprovados |
+| `npm test -- --run` | 16 arquivos, 301/301 aprovados |
 | `npm run typecheck` | Exit 0 |
 | `npm run build` | Exit 0 |
 | `node --check scripts/verify-local-invoice.mjs` | Exit 0 |
