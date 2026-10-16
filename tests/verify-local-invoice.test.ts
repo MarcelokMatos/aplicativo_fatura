@@ -94,6 +94,14 @@ describe("verificador local com saída agregada e segura", () => {
       diagnostics: ["AMBIGUOUS_REFERENCE_DATE", "NO_TRANSACTIONS", "RECONCILIATION_FAILED"],
     } });
   });
+  it("publica o diagnóstico seguro de sufixo de parcela inválido", () => {
+    const rows = invoiceRows();
+    rows[4] = [[20, "03/01"], [80, "HISTORICO SINTETICO06/0"], [565, "100,00"]];
+    expect(run([file(syntheticPdf(rows))])).toEqual({ exit: 1, output: {
+      recognized: true, pages: 1, transactions: 2, balancedWithinOneCent: true,
+      diagnostics: ["INVALID_INSTALLMENT_SUFFIX"],
+    } });
+  });
   it("não aprova documento sem lançamentos mesmo com controle zero", () => {
     expect(run([file(syntheticPdf(invoiceRows("0,00").slice(0, 4)))])).toEqual({ exit: 1, output: {
       recognized: true, pages: 1, transactions: 0, balancedWithinOneCent: true,

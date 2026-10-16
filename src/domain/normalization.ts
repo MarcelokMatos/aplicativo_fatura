@@ -36,21 +36,33 @@ export function extractInstallment(history: string): {
   history: string;
   installment: string;
 } {
-  const match = /(\d{1,2})\/(\d{1,2})\s*$/.exec(history);
-  // Uma barra colada à sequência numérica indica caminho ambíguo, não parcela.
-  if (!match || /\/\d*$/.test(history.slice(0, match.index))) {
-    return { history, installment: "1/1" };
-  }
-  const current = Number(match[1]);
-  const total = Number(match[2]);
-  if (current < 1 || current > total) {
+  const candidate = terminalInstallmentCandidate(history);
+  if (!candidate || !candidate.valid) {
     return { history, installment: "1/1" };
   }
 
   return {
-    history: history.slice(0, match.index).trimEnd(),
-    installment: `${current}/${total}`,
+    history: history.slice(0, candidate.index).trimEnd(),
+    installment: `${candidate.current}/${candidate.total}`,
   };
+}
+
+export function hasInvalidInstallmentSuffix(history: string): boolean {
+  return terminalInstallmentCandidate(history)?.valid === false;
+}
+
+function terminalInstallmentCandidate(history: string): {
+  index: number;
+  current: number;
+  total: number;
+  valid: boolean;
+} | null {
+  const match = /(\d{1,2})\/(\d{1,2})\s*$/.exec(history);
+  // Uma barra colada à sequência numérica indica caminho ambíguo, não parcela.
+  if (!match || /\/\d*$/.test(history.slice(0, match.index))) return null;
+  const current = Number(match[1]);
+  const total = Number(match[2]);
+  return { index: match.index, current, total, valid: current >= 1 && current <= total };
 }
 
 export function chooseTransactionValue(

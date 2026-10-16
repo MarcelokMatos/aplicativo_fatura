@@ -17,6 +17,21 @@ describe("histórico, localidade e parcela no layout compacto sintético", () =>
     expect(result.diagnostics).toEqual([]);
   });
 
+  it("preserva e sinaliza sufixo terminal inválido antes da localidade separada", () => {
+    const result = parseBradescoInvoice(compactHistoryInvoice([
+      [[20, "05/01"], [70, "LOJA INVENTADA06/0"], [290, "CIDADE SINTÉTICA"], [450, "10,00"]],
+    ]));
+
+    expect(result.transactions[0]).toMatchObject({
+      history: "LOJA INVENTADA06/0",
+      installment: "1/1",
+      warnings: ["INVALID_INSTALLMENT_SUFFIX"],
+    });
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({ code: "INVALID_INSTALLMENT_SUFFIX", severity: "warning" }),
+    ]);
+  });
+
   it("retira somente a localidade em coluna separada depois da parcela", () => {
     const result = parseBradescoInvoice(compactHistoryInvoice([
       [[20, "05/01"], [70, "PORTO SEGURO"], [160, "03/10"], [290, "CIDADE SINTÉTICA"], [450, "10,00"]],

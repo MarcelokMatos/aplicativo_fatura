@@ -63,6 +63,21 @@ describe("parseBradescoInvoice", () => {
     expect(result.diagnostics).toEqual([]);
   });
 
+  it("preserva e sinaliza sufixo terminal de parcela numericamente inválido", () => {
+    const result = parseBradescoInvoice(singleTableInvoice([
+      [[20, "05/01"], [80, "LOJA INVENTADA06/0"], [565, "10,00"]],
+    ]));
+
+    expect(result.transactions[0]).toMatchObject({
+      history: "LOJA INVENTADA06/0",
+      installment: "1/1",
+      warnings: ["INVALID_INSTALLMENT_SUFFIX"],
+    });
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({ code: "INVALID_INSTALLMENT_SUFFIX", severity: "warning" }),
+    ]);
+  });
+
   it.each([
     "SALDO ANTERIOR", "PAGAMENTO DA FATURA", "PAGAMENTO POR DÉBITO EM CONTA",
     "TOTAL PARA CARTÃO SINTÉTICO", "SUBTOTAL", "TOTAL GERAL", "LIMITE DISPONÍVEL",

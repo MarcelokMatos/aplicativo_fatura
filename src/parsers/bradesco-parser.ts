@@ -1,4 +1,4 @@
-import { chooseTransactionValue, extractInstallment, inferTransactionDate, parseBrDecimal } from "../domain/normalization";
+import { chooseTransactionValue, extractInstallment, hasInvalidInstallmentSuffix, inferTransactionDate, parseBrDecimal } from "../domain/normalization";
 import type { InvoiceTransaction } from "../domain/transaction";
 import { groupTextItemsIntoLines } from "../pdf/group-lines";
 import type { PdfTextLine } from "../pdf/group-lines";
@@ -169,6 +169,9 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
       const brl = amount("brl");
       const value = chooseTransactionValue(brl, originalCurrency);
       if (value === null) diagnose("MISSING_TRANSACTION_VALUE", "Lançamento sem valor utilizável; revise a linha.");
+      if (!cells.historyAmbiguous && hasInvalidInstallmentSuffix(cells.history)) {
+        diagnose("INVALID_INSTALLMENT_SUFFIX", "Sufixo de parcela inválido; revise a linha preservada.", "warning");
+      }
       const installment = cells.historyAmbiguous
         ? { history: cells.history, installment: "1/1" }
         : extractInstallment(cells.history);

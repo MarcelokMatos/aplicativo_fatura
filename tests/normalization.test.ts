@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   chooseTransactionValue,
   extractInstallment,
+  hasInvalidInstallmentSuffix,
   inferTransactionDate,
   parseBrDecimal,
 } from "../src/domain/normalization";
@@ -92,6 +93,18 @@ describe("extractInstallment", () => {
     (history) => {
       expect(extractInstallment(history)).toEqual({ history, installment: "1/1" });
     },
+  );
+});
+
+describe("hasInvalidInstallmentSuffix", () => {
+  it.each(["LOJA INVENTADA06/0", "LOJA 00/10", "LOJA 11/10", "LOJA 01/00"])(
+    "sinaliza somente candidato terminal numericamente inválido em %j",
+    (history) => expect(hasInvalidInstallmentSuffix(history)).toBe(true),
+  );
+
+  it.each(["LOJA 02/10", "LOJA/02/10", "LOJA A/B", "LOJA 02/10 CENTRO", "LOJA 102/110"])(
+    "não sinaliza parcela válida, barra interna ou caminho ambíguo em %j",
+    (history) => expect(hasInvalidInstallmentSuffix(history)).toBe(false),
   );
 });
 
