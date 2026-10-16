@@ -37,9 +37,30 @@ describe("densidade da tabela de revisão", () => {
     expect(getComputedStyle(input).marginTop).toBe("0px");
     expect(getComputedStyle(remove).marginTop).toBe("0px");
     expect(getComputedStyle(remove).minHeight).toBe("32px");
+  });
+
+  it.each([
+    ["Data", "108px"],
+    ["Moeda de origem", "112px"],
+    ["US$", "80px"],
+    ["Cotação US$", "104px"],
+    ["R$", "96px"],
+    ["Parcela", "72px"],
+    ["Valor", "96px"],
+  ])("dimensiona %s conforme seu conteúdo de referência", (label, expectedWidth) => {
+    mount();
+    const input = document.querySelector(`input[aria-label="${label}, linha 1"]`)!;
+    expect(getComputedStyle(input).width).toBe(expectedWidth);
+    expect(getComputedStyle(input.closest("td")!).width).toBe("1%");
+  });
+
+  it("reserva espaço flexível para Histórico com mínimo de 18rem e mantém rolagem", () => {
+    const { table } = mount();
     const history = document.querySelector('input[aria-label="Histórico, linha 1"]')!;
-    expect(getComputedStyle(history).width).toBe("272px");
-    expect(getComputedStyle(input).width).toBe("128px");
+    expect(getComputedStyle(history).minWidth).toBe("288px");
+    expect(getComputedStyle(history).width).toBe("100%");
+    expect(getComputedStyle(history.closest("td")!).width).toBe("auto");
+    expect(getComputedStyle(table.parentElement!).overflowX).toBe("auto");
   });
 
   it("mantém alvos de toque de 44px no mínimo quando a regra de tela pequena é aplicada", () => {
