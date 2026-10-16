@@ -1,10 +1,10 @@
 # Homologação V1 — execução parcial da Task 9
 
-Data da verificação: 16/10/2026. Aprovada somente a parte automatizada da fatura inicial. A Task 9 permanece parcial e a V1 ainda não foi homologada como estável.
+Data da verificação: 16/10/2026. A fatura inicial permanece conciliada, mas a homologação está reprovada até a revisão manual de um sufixo de parcela inválido. A Task 9 permanece parcial e a V1 ainda não foi homologada como estável.
 
 ## Resultado agregado da fatura inicial
 
-Verificador executado localmente após as correções do parser até o commit `36030e0`, sem gravar o PDF, o texto extraído ou os lançamentos no repositório.
+Verificador executado localmente após as correções do parser até o commit `9b79c8a`, sem gravar o PDF, o texto extraído ou os lançamentos no repositório.
 
 | Critério | Resultado |
 |---|---|
@@ -12,8 +12,8 @@ Verificador executado localmente após as correções do parser até o commit `3
 | Páginas | 4 |
 | Lançamentos extraídos | 122 |
 | Conciliação dentro de R$ 0,01 | Sim |
-| Diagnósticos | Nenhum |
-| Exit code | 0 |
+| Diagnósticos | `INVALID_INSTALLMENT_SUFFIX` |
+| Exit code | 1, esperado enquanto a revisão estiver pendente |
 
 Esses agregados não comprovam igualdade linha a linha com a planilha de referência. Não são registrados nomes, cartões, históricos, datas privadas, valores individuais ou totais financeiros. O XLSX não foi aberto nesta etapa.
 
@@ -29,7 +29,7 @@ Ambiente verificado: Node.js `v24.21.0` e npm `11.19.0`.
 | `npm run build` | Exit 0 |
 | `node --check scripts/verify-local-invoice.mjs` | Exit 0 |
 | `git diff --check` | Exit 0 |
-| `node scripts/verify-local-invoice.mjs <PDF>` | Exit 0; resultado agregado acima |
+| `node scripts/verify-local-invoice.mjs <PDF>` | Exit 1; resultado agregado acima e falha explícita de parcela |
 
 Os testes do CLI usam PDFs inventados e executam os mesmos módulos de extração, parser e conciliação. Cobrem sucesso, tolerância, divergência, layout desconhecido, referência ausente/ambígua, zero lançamentos, falha de leitura, PDF inválido e argumento ausente. Também verificam esquema de saída, ausência de conteúdo sintético reservado e stderr vazio.
 
@@ -46,6 +46,7 @@ O [README](../README.md#homologação-privada) descreve o comando e a resoluçã
 
 ## Pendências obrigatórias de homologação
 
+- [ ] Revisar manualmente o sufixo de parcela inválido sinalizado pela aplicação; o parser preserva o texto e não inventa o dígito ausente.
 - [ ] Comparação manual com XLSX: quantidade e ordem das linhas, oito colunas, parcelas, créditos, duplicatas e soma. Pendente; planilha não aberta.
 - [ ] Colagem real em Excel: cabeçalho, oito colunas, sinais e valores sem fórmulas. Pendente.
 - [ ] Colagem real em Google Sheets: mesma estrutura, sem reorganização manual. Pendente; nenhuma integração direta criada.
