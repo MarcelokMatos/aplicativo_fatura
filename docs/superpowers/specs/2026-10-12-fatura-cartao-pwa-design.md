@@ -342,6 +342,8 @@ fatura-cartao-pwa/
 - Como a integração direta com GitHub está bloqueada no workspace atual, a primeira entrega poderá ser disponibilizada em arquivo compactado.
 - O repositório pessoal será criado ou conectado posteriormente, fora do workspace corporativo.
 - A publicação prevista é estática, inicialmente por GitHub Pages ou serviço equivalente.
+- Uma publicação beta de homologação pode ser disponibilizada antes do encerramento da Task 9 exclusivamente para testar navegador, instalação e reabertura offline em dispositivos reais. Ela deve permanecer identificada como não homologada e não permite declarar a V1 estável.
+- A publicação estável continua condicionada à conclusão de todos os critérios de homologação.
 - A escolha final do host não altera o parser nem a interface.
 
 ## 14. Evolução posterior
