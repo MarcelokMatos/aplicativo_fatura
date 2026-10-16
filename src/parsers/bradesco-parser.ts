@@ -148,6 +148,9 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
           result.diagnostics.push({ severity, code, message, page: line.page, line: line.line });
         }
       };
+      if (cells.historyAmbiguous) {
+        diagnose("AMBIGUOUS_HISTORY_LOCALITY", "Estabelecimento e localidade sem separação segura; revise o histórico preservado.", "warning");
+      }
       let date = "";
       try {
         date = inferTransactionDate(cells.date, referenceDate);

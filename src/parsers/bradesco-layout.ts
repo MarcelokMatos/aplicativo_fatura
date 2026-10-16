@@ -46,7 +46,7 @@ export function detectBradescoColumns(line: PdfTextLine, previous?: PdfTextLine)
   return Object.fromEntries(COLUMN_NAMES.map((name, index) => [name, positions[index]!])) as Record<ColumnName, number>;
 }
 
-export function readBradescoColumns(line: PdfTextLine, columns: BradescoColumns): Record<ColumnName, string> {
+export function readBradescoColumns(line: PdfTextLine, columns: BradescoColumns): Record<ColumnName, string> & { historyAmbiguous?: boolean } {
   if (columns.compact) {
     const historyStart = (columns.date + columns.history) / 2;
     const right = columns.brl + (columns.brl - columns.usdRate) / 2;
@@ -54,6 +54,20 @@ export function readBradescoColumns(line: PdfTextLine, columns: BradescoColumns)
     const monetary = (item: typeof items[number]) => /^-?[\d.]+,\d+-?$/.test(item.text.trim())
       && item.x + item.width >= columns.usdRate;
     const join = (selected: typeof items) => selected.map((item) => item.text).join(" ").trim();
+    const historyItems = items.filter((item) => item.x >= historyStart && item.x < columns.usdRate && !monetary(item));
+    const installment = (item: typeof items[number]) => /^\d{1,2}\/\d{1,2}$/.test(item.text.trim());
+    // No compacto, a faixa posterior do histórico contém a coluna sem rótulo
+    // de localidade. Só separe quando houver estabelecimento antes dela e um
+    // vão maior que a altura do texto, sem sobreposição de nenhum fragmento.
+    const localityBoundary = (columns.history + columns.usdRate) / 2;
+    const localityIndex = historyItems.findIndex((item) => item.x >= localityBoundary && !installment(item));
+    const locality = historyItems[localityIndex];
+    const beforeLocality = historyItems.slice(0, localityIndex);
+    const separated = locality && localityIndex > 0 && beforeLocality.every((item) =>
+      locality.x - (item.x + item.width) > Math.max(Math.abs(item.height), Math.abs(locality.height)));
+    const history = separated
+      ? [...beforeLocality, ...historyItems.slice(-1).filter(installment)]
+      : historyItems;
     const joinAmounts = (selected: typeof items) => selected.map((item) => {
       const next = items[items.indexOf(item) + 1];
       const text = item.text.trim();
@@ -68,7 +82,8 @@ export function readBradescoColumns(line: PdfTextLine, columns: BradescoColumns)
     }).join(" ");
     return {
       date: join(items.filter((item) => item.x >= columns.date && item.x < historyStart)),
-      history: join(items.filter((item) => item.x >= historyStart && item.x < columns.usdRate && !monetary(item))),
+      history: join(history),
+      historyAmbiguous: !!locality && !separated,
       originalCurrency: "", usd: "",
       usdRate: joinAmounts(items.filter((item) => monetary(item) && item.x + item.width < columns.brl)),
       brl: joinAmounts(items.filter((item) => monetary(item) && item.x + item.width >= columns.brl)),

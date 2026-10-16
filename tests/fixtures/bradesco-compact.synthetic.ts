@@ -1,4 +1,5 @@
 import { syntheticPage } from "./bradesco-invoice.synthetic";
+import type { SyntheticRow } from "./bradesco-invoice.synthetic";
 
 // Tudo inventado: apenas cabeçalho compacto, alinhamento à direita e continuação
 // sem cabeçalho reproduzem a classe estrutural investigada localmente.
@@ -23,3 +24,14 @@ export const compactInvoice = [
     [[20, "Total para cartão sintético"], [330, "140,00"]],
   ]),
 ];
+
+// Coordenadas e textos inventados; a coluna sem rótulo é separada por geometria.
+export function compactHistoryInvoice(rows: readonly SyntheticRow[]) {
+  return [syntheticPage(1, [
+    [[20, "Bradesco Cartões"]],
+    [[20, "Vencimento"], [240, "10/01/2026"]],
+    [[400, "Cotação"]],
+    [[20, "Data"], [70, "Histórico de Lançamentos"], [400, "US$"], [470, "R$"]],
+    ...rows,
+  ])];
+}
