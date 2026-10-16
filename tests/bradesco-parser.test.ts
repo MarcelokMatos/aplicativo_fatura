@@ -48,6 +48,22 @@ describe("parseBradescoInvoice", () => {
   });
 
   it.each([
+    ["SESI FARMACIA FM 57402/02", "SESI FARMACIA FM 574", "2/2"],
+    ["ASSOCIACAO CONGREGAC06/10", "ASSOCIACAO CONGREGAC", "6/10"],
+  ])("reconhece parcela colada ao histórico montado no padrão: %s", (input, history, installment) => {
+    const pages = singleTableInvoice([
+      [[20, "05/01"], [80, input], [300, "10,00"], [405, "12,00"], [465, "5,00"], [565, "60,00"]],
+    ]);
+    const result = parseBradescoInvoice(pages);
+    expect(result.recognizedLayout).toBe(true);
+    expect(result.transactions).toHaveLength(1);
+    expect(result.transactions[0]).toMatchObject({
+      history, installment, originalCurrency: 10, usd: 12, usdRate: 5, brl: 60, value: 60, warnings: [],
+    });
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  it.each([
     "SALDO ANTERIOR", "PAGAMENTO DA FATURA", "PAGAMENTO POR DÉBITO EM CONTA",
     "TOTAL PARA CARTÃO SINTÉTICO", "SUBTOTAL", "TOTAL GERAL", "LIMITE DISPONÍVEL",
     "TAXAS INFORMATIVAS", "MENSAGEM ADMINISTRATIVA",

@@ -4,6 +4,19 @@ import { compactHistoryInvoice } from "./fixtures/bradesco-compact.synthetic";
 import { singleTableInvoice } from "./fixtures/bradesco-invoice.synthetic";
 
 describe("histórico, localidade e parcela no layout compacto sintético", () => {
+  it.each([
+    ["SESI FARMACIA FM 57402/02", "SESI FARMACIA FM 574", "2/2"],
+    ["ASSOCIACAO CONGREGAC06/10", "ASSOCIACAO CONGREGAC", "6/10"],
+  ])("reconhece parcela colada antes da localidade separada: %s", (input, history, installment) => {
+    const result = parseBradescoInvoice(compactHistoryInvoice([
+      [[20, "05/01"], [70, input], [290, "CIDADE SINTÉTICA"], [450, "10,00"]],
+    ]));
+    expect(result.recognizedLayout).toBe(true);
+    expect(result.transactions).toHaveLength(1);
+    expect(result.transactions[0]).toMatchObject({ history, installment, value: 10, warnings: [] });
+    expect(result.diagnostics).toEqual([]);
+  });
+
   it("retira somente a localidade em coluna separada depois da parcela", () => {
     const result = parseBradescoInvoice(compactHistoryInvoice([
       [[20, "05/01"], [70, "PORTO SEGURO"], [160, "03/10"], [290, "CIDADE SINTÉTICA"], [450, "10,00"]],

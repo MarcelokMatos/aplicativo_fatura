@@ -73,8 +73,22 @@ describe("extractInstallment", () => {
     expect(extractInstallment("LOJA A/B 03/12  ")).toEqual({ history: "LOJA A/B", installment: "3/12" });
   });
 
-  it.each(["LOJA A/B", "LOJA 02/10 CENTRO", "LOJA/02/10", "LOJA 102/110", "LOJA", ""])(
-    "mantém %j e usa 1/1 sem token terminal isolado",
+  it.each([
+    ["SESI FARMACIA FM 57402/02", "SESI FARMACIA FM 574", "2/2"],
+    ["ASSOCIACAO CONGREGAC06/10", "ASSOCIACAO CONGREGAC", "6/10"],
+    ["LOJA123/30", "LOJA1", "23/30"],
+    ["LOJA7/9  ", "LOJA", "7/9"],
+    ["LOJA A/B06/10", "LOJA A/B", "6/10"],
+  ])("extrai os dois dígitos junto à última barra de %j", (input, history, installment) => {
+    expect(extractInstallment(input)).toEqual({ history, installment });
+  });
+
+  it.each([
+    "LOJA A/B", "LOJA 02/10 CENTRO", "LOJA/02/10", "LOJA/102/10",
+    "LOJA 102/110", "LOJA06/100", "LOJA 00/10", "LOJA00/10",
+    "LOJA 01/00", "LOJA01/00", "LOJA 11/10", "LOJA11/10", "LOJA", "",
+  ])(
+    "mantém %j e usa 1/1 sem parcela terminal válida",
     (history) => {
       expect(extractInstallment(history)).toEqual({ history, installment: "1/1" });
     },

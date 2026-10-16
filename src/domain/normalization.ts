@@ -36,14 +36,20 @@ export function extractInstallment(history: string): {
   history: string;
   installment: string;
 } {
-  const match = /(?:^|\s)(\d{1,2})\/(\d{1,2})\s*$/.exec(history);
-  if (!match) {
+  const match = /(\d{1,2})\/(\d{1,2})\s*$/.exec(history);
+  // Uma barra colada à sequência numérica indica caminho ambíguo, não parcela.
+  if (!match || /\/\d*$/.test(history.slice(0, match.index))) {
+    return { history, installment: "1/1" };
+  }
+  const current = Number(match[1]);
+  const total = Number(match[2]);
+  if (current < 1 || current > total) {
     return { history, installment: "1/1" };
   }
 
   return {
     history: history.slice(0, match.index).trimEnd(),
-    installment: `${Number(match[1])}/${Number(match[2])}`,
+    installment: `${current}/${total}`,
   };
 }
 
