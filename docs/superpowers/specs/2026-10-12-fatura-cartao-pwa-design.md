@@ -109,7 +109,7 @@ Cada lançamento tratado terá:
 | Campo | Tipo | Regra |
 |---|---|---|
 | Data | data | Data do lançamento apresentada na fatura |
-| Histórico | texto | Descrição do estabelecimento ou evento |
+| Histórico | texto | Somente o nome do estabelecimento ou evento; cidade, UF e demais informações de localidade ficam fora deste campo |
 | Moeda de origem | decimal opcional | Valor extraído da coluna correspondente |
 | US$ | decimal opcional | Valor em dólar quando existir |
 | Cotação US$ | decimal opcional | Cotação informada quando existir |
@@ -140,6 +140,14 @@ O parser deve excluir, no mínimo:
 - Linhas vazias ou sem histórico.
 
 Estornos e créditos que sejam lançamentos reais devem permanecer com sinal negativo.
+
+### Histórico e localidade
+
+- O campo `Histórico` deve conter somente o nome do estabelecimento ou evento.
+- Cidade, UF, país ou outro texto de localidade apresentado como segmento estrutural separado no PDF não deve ser concatenado ao histórico.
+- A separação deve usar posição e estrutura do layout, sem listas de cidades ou remoção por simples coincidência textual, para não truncar nomes legítimos de estabelecimentos.
+- Quando estabelecimento e localidade não puderem ser separados com segurança, a linha deve permanecer visível como suspeita; o parser não deve remover texto por inferência silenciosa.
+- Exemplo sintético: uma linha estruturada como `16/07 | PORTO SEGURO | CIDADE SINTÉTICA | 03/10` resulta em `Histórico = PORTO SEGURO` e `Parcela = 3/10`; a localidade não integra nenhuma das oito colunas de saída.
 
 ### Parcelas
 
@@ -201,6 +209,10 @@ Regras:
 - Diferença da conciliação.
 - Tabela com as oito colunas.
 
+A tabela deve privilegiar alta densidade de conferência: fonte, espaçamentos, altura de campos e padding devem ser compactos sem prejudicar legibilidade, foco visível ou operação por toque em tela pequena.
+
+Cada lançamento deve apresentar uma ação de exclusão por ícone de lixeira em uma área de controle à esquerda. Essa área não integra as oito colunas de dados nem a saída copiada. O ícone deve manter nome acessível equivalente a `Excluir linha N` e área de toque adequada.
+
 ### Edição
 
 O usuário poderá:
@@ -251,6 +263,7 @@ Inclusão manual de novas linhas não faz parte da V1. Uma linha ausente deve se
 - Estornos e créditos.
 - Compras repetidas legítimas.
 - Parcelas de diferentes quantidades.
+- Separação entre estabelecimento, localidade e parcela sem truncar o nome do estabelecimento.
 - Mudança pequena de espaçamento ou quebra de página.
 
 ### Testes de interface
@@ -270,7 +283,7 @@ A V1 estará homologada quando:
 1. A fatura fornecida gerar todos os lançamentos esperados e nenhum registro administrativo.
 2. O total líquido extraído reconciliar com a fatura dentro de R$ 0,01.
 3. Estornos e créditos preservarem o sinal.
-4. Parcelas forem reconhecidas corretamente sem falsos positivos conhecidos.
+4. Parcelas forem reconhecidas corretamente sem falsos positivos conhecidos, e o histórico contiver somente o estabelecimento ou evento, sem localidade estrutural separada.
 5. A tabela copiada puder ser colada sem reorganização das colunas.
 6. O fluxo completo funcionar em pelo menos um Android e um computador.
 7. O PDF não aparecer em requisições de rede nem em armazenamento persistente.
