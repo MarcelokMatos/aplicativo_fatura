@@ -66,7 +66,7 @@ describe("fluxo visual da fatura", () => {
     await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
     expect(writeText.mock.calls[0]?.[0]).toBe(
       "Data\tHistórico\tMoeda de origem\tUS$\tCotação US$\tR$\tParcela\tValor\n" +
-      "03/01/2026\tCOMPRA SINTÉTICA\t\t\t\t470\t1/1\t470",
+      "03/01/2026\tCOMPRA SINTÉTICA\t\t\t\t470\t'1/1\t470",
     );
   });
 
@@ -282,7 +282,7 @@ describe("fluxo visual da fatura", () => {
     button("Copiar mesmo assim").click();
     await vi.waitFor(() => expect(root.textContent).toContain("Tabela copiada"));
     expect(writeText).toHaveBeenCalledTimes(1);
-    expect(writeText.mock.calls[0]?.[0]).toContain("03/01/2026\tCOMPRA SINTÉTICA\t\t\t\t470\t1/1\t470");
+    expect(writeText.mock.calls[0]?.[0]).toContain("03/01/2026\tCOMPRA SINTÉTICA\t\t\t\t470\t'1/1\t470");
   });
 
   it("NaN, data ausente e warnings ficam visíveis como suspeitos, nunca como sucesso", async () => {
@@ -299,13 +299,22 @@ describe("fluxo visual da fatura", () => {
   });
 
   it("clipboard negado oferece textarea intacto, focado e selecionado", async () => {
-    const { root, controller } = mount({ fallback: true });
+    const { root, controller, writeText } = mount({ fallback: true });
     await controller.loadFile(file);
+    controller.editCell(0, "installment", "1/3");
+    expect(input("Parcela, linha 1").value).toBe("1/3");
     button("Copiar tabela").click();
     await vi.waitFor(() => expect(root.querySelector("textarea")).not.toBeNull());
     const fallback = root.querySelector("textarea")!;
     expect(fallback.readOnly).toBe(true);
     expect(fallback.value).toContain("Data\tHistórico\tMoeda de origem\tUS$\tCotação US$\tR$\tParcela\tValor\n");
+    expect(fallback.value).toBe(
+      "Data\tHistórico\tMoeda de origem\tUS$\tCotação US$\tR$\tParcela\tValor\n" +
+      "03/01/2026\tCOMPRA SINTÉTICA\t\t\t\t470\t'1/3\t470",
+    );
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(fallback.value);
+    expect(controller.getState().transactions[0]?.installment).toBe("1/3");
+    expect(input("Parcela, linha 1").value).toBe("1/3");
     expect(document.activeElement).toBe(fallback);
     expect(fallback.selectionStart).toBe(0);
     expect(fallback.selectionEnd).toBe(fallback.value.length);

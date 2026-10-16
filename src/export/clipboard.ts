@@ -28,7 +28,7 @@ export function serializeTransactionsForClipboard(transactions: InvoiceTransacti
     formatNumber(transaction.usd),
     formatNumber(transaction.usdRate),
     formatNumber(transaction.brl),
-    transaction.installment,
+    "'" + transaction.installment,
     formatNumber(transaction.value),
   ].join("\t"));
   return [OUTPUT_HEADERS.join("\t"), ...rows].join("\n");

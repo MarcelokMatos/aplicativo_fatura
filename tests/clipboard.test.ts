@@ -23,6 +23,17 @@ afterEach(() => {
 });
 
 describe("serializeTransactionsForClipboard", () => {
+  it.each(["1/1", "1/3", "10/12"])("exporta parcela %s como texto sem alterar o domínio", (installment) => {
+    const row = transaction({ installment });
+    const lines = serializeTransactionsForClipboard([row]).split("\n");
+    expect(lines[0]).toBe(header);
+    expect(lines[1]!.split("\t")).toEqual([
+      "01/10/2026", "COMPRA SINTÉTICA", "", "", "", "1234,56", "'" + installment, "1234,56",
+    ]);
+    expect(row.installment).toBe(installment);
+    expect(lines[1]!.split("\t")[6]).not.toMatch(/^[=+\-@]/);
+  });
+
   it("exporta somente o cabeçalho exato para lista vazia", () => {
     expect(OUTPUT_HEADERS).toEqual([
       "Data", "Histórico", "Moeda de origem", "US$", "Cotação US$", "R$", "Parcela", "Valor",
@@ -36,27 +47,27 @@ describe("serializeTransactionsForClipboard", () => {
       usdRate: 5.1234, brl: null, installment: "1/1", value: -10.25,
     }), transaction()];
     expect(serializeTransactionsForClipboard(rows)).toBe(
-      header + "\n01/10/2026\tCOMPRA SINTÉTICA\t\t\t\t1234,56\t2/10\t1234,56" +
-      "\n01/10/2026\tCRÉDITO SINTÉTICO\t-10,25\t-2\t5,1234\t\t1/1\t-10,25" +
-      "\n01/10/2026\tCOMPRA SINTÉTICA\t\t\t\t1234,56\t2/10\t1234,56",
+      header + "\n01/10/2026\tCOMPRA SINTÉTICA\t\t\t\t1234,56\t'2/10\t1234,56" +
+      "\n01/10/2026\tCRÉDITO SINTÉTICO\t-10,25\t-2\t5,1234\t\t'1/1\t-10,25" +
+      "\n01/10/2026\tCOMPRA SINTÉTICA\t\t\t\t1234,56\t'2/10\t1234,56",
     );
   });
 
   it("preserva zero como número", () => {
     expect(serializeTransactionsForClipboard([transaction({
       originalCurrency: 0, usd: 0, usdRate: 0, brl: 0, value: 0,
-    })])).toBe(header + "\n01/10/2026\tCOMPRA SINTÉTICA\t0\t0\t0\t0\t2/10\t0");
+    })])).toBe(header + "\n01/10/2026\tCOMPRA SINTÉTICA\t0\t0\t0\t0\t'2/10\t0");
   });
 
   it.each([NaN, Infinity, -Infinity])("exporta %s como célula vazia em qualquer coluna numérica", (value) => {
     expect(serializeTransactionsForClipboard([transaction({
       originalCurrency: value, usd: value, usdRate: value, brl: value, value,
-    })])).toBe(header + "\n01/10/2026\tCOMPRA SINTÉTICA\t\t\t\t\t2/10\t");
+    })])).toBe(header + "\n01/10/2026\tCOMPRA SINTÉTICA\t\t\t\t\t'2/10\t");
   });
 
   it("substitui tabs e quebras internas sem criar novas células ou linhas", () => {
     expect(serializeTransactionsForClipboard([transaction({ history: "LOJA\tA\r\nB\nC\rD" })]))
-      .toBe(header + "\n01/10/2026\tLOJA A B C D\t\t\t\t1234,56\t2/10\t1234,56");
+      .toBe(header + "\n01/10/2026\tLOJA A B C D\t\t\t\t1234,56\t'2/10\t1234,56");
   });
 
   it.each(["=1+1", "+1+1", "-1+1", "@SUM(A1)", "\t=1+1", "\r\n+1+1", "  @SUM(A1)"])(
@@ -83,7 +94,7 @@ describe("formatTransactionDate", () => {
 });
 
 describe("copyTransactions", () => {
-  const text = header + "\n01/10/2026\tCOMPRA SINTÉTICA\t\t\t\t1234,56\t2/10\t1234,56";
+  const text = header + "\n01/10/2026\tCOMPRA SINTÉTICA\t\t\t\t1234,56\t'2/10\t1234,56";
 
   it("copia o texto exato no clipboard injetado e aguarda a gravação", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
