@@ -43,7 +43,47 @@ describe("conciliação compacta com itens sintéticos fragmentados", () => {
     expect(reconcileInvoice(result.transactions, 140).isBalanced).toBe(true);
   });
 
-  it.each(["PGTO. DA FATURA", "PAGTO. POR DÉBITO"])("exclui pagamento abreviado %s e mantém compra incompleta", (payment) => {
+  it("não associa hífen distante da borda direita do valor", () => {
+    const pages = structuredClone(compactInvoice);
+    const amount = pages[1]!.items.find((item) => item.text === "20,00-")!;
+    Object.assign(amount, { text: "20,00", width: 20 });
+    pages[1]!.items.push({ ...amount, text: "-", x: 360, width: 4 });
+    expect(parseBradescoInvoice(pages).transactions[1]).toMatchObject({ brl: 20, value: 20, warnings: [] });
+  });
+
+  it("não associa hífen adjacente em outra faixa monetária", () => {
+    const pages = structuredClone(compactInvoice);
+    const amount = pages[1]!.items.find((item) => item.text === "100,00")!;
+    Object.assign(amount, { text: "9,00", x: 323, width: 16 });
+    pages[1]!.items.push({ ...amount, text: "-", x: 341, width: 4 });
+    const row = parseBradescoInvoice(pages).transactions[0]!;
+    expect(row).toMatchObject({ usdRate: 9, brl: null, warnings: ["MISSING_TRANSACTION_VALUE"] });
+    expect(row.value).toBeNaN();
+  });
+
+  it.each(["-20,00", "20,00-"])("não anexa outro hífen ao valor já assinado %s", (text) => {
+    const pages = structuredClone(compactInvoice);
+    const amount = pages[1]!.items.find((item) => item.text === "20,00-")!;
+    Object.assign(amount, { text, width: 24 });
+    pages[1]!.items.push({ ...amount, text: "-", x: amount.x + amount.width + 2, width: 4 });
+    const result = parseBradescoInvoice(pages);
+    expect(result.transactions[1]).toMatchObject({ brl: -20, value: -20, warnings: [] });
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  it.each(["PGTO DIGITAL", "PAGTO APP", "PAGTO POR DEB APP"])("preserva compra sintética iniciada por %s", (history) => {
+    const pages = structuredClone(compactInvoice);
+    pages[1]!.items.find((item) => item.text === "LOJA INVENTADA A 02/10")!.text = history;
+    const result = parseBradescoInvoice(pages);
+    expect(result.transactions).toHaveLength(4);
+    expect(result.transactions[0]).toMatchObject({ history, value: 100 });
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  it.each([
+    "PGTO. DA FATURA", "PAGTO. POR DÉBITO", "PGTO.DA   FATURA", "PAGTO : POR DÉBITO",
+    "PAGTO: POR DEB. EM C/C", "PGTO. POR DEB: CONTA",
+  ])("exclui pagamento abreviado %s e mantém compra incompleta", (payment) => {
     const pages = [...structuredClone(compactInvoice), syntheticPage(4, [
       [[20, "Bradesco Cartões"]],
       [[20, "06/01"], [70, payment], [326, "900,00 -"]],
