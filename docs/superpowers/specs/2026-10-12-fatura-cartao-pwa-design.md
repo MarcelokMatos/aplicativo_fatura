@@ -159,6 +159,8 @@ Estornos e créditos que sejam lançamentos reais devem permanecer com sinal neg
 - Barras internas ou sufixos numéricos inválidos, não terminais ou fora da região estruturada de parcela devem permanecer no histórico.
 - Um sufixo terminal com aparência de parcela, mas incompleto ou inválido, deve permanecer integralmente no histórico, usar `1/1` provisoriamente e marcar a linha como suspeita com diagnóstico explícito; a interface editável permite a correção manual.
 - Nunca completar um dígito ausente a partir de outra compra, do nome do estabelecimento ou de recorrências na mesma fatura. Exemplo sintético: `LOJA INVENTADA06/0` permanece no histórico, recebe `Parcela = 1/1` e exige revisão.
+- No layout compacto, um sufixo pode continuar na linha física imediatamente seguinte. A recomposição só é permitida quando essa linha não possui data, contém exclusivamente um token de um ou dois dígitos alinhado à faixa do histórico, está geometricamente próxima e sua concatenação transforma o sufixo anterior inválido em uma parcela válida. Exemplo sintético: `LOJA INVENTADA06/0` seguido imediatamente por `6` resulta em `Histórico = LOJA INVENTADA` e `Parcela = 6/6`.
+- Uma continuação não deve ser consumida por conter apenas dígitos: se a linha anterior não tiver sufixo parcelar inválido, se a geometria não for segura ou se a concatenação continuar inválida, preservar a falha explícita sem inferência.
 - Normalizar zeros à esquerda quando necessário.
 - Usar `1/1` quando não houver parcelamento reconhecido.
 - Não calcular nem projetar a próxima parcela na V1.
@@ -263,6 +265,7 @@ Inclusão manual de novas linhas não faz parte da V1. Uma linha ausente deve se
 - Reconhecimento de parcelas.
 - Parcela terminal colada à descrição, inclusive com dígitos anteriores que permanecem no histórico.
 - Sufixo terminal semelhante a parcela, porém incompleto ou inválido, preservado e marcado como suspeito sem inferência.
+- Parcela quebrada entre duas linhas físicas recomposta somente por continuidade estrutural e resultado válido.
 - Falso positivo de barra no histórico.
 - Coalescência entre `R$` e `Moeda de origem`.
 - Serialização tabulada.
