@@ -32,7 +32,8 @@ function mount(options: { unbalanced?: boolean; suspect?: boolean; fallback?: bo
   return { root, controller, writeText };
 }
 function button(text: string): HTMLButtonElement {
-  const found = Array.from(document.querySelectorAll("button")).find((item) => item.textContent === text);
+  const found = Array.from(document.querySelectorAll("button")).find((item) =>
+    (item.getAttribute("aria-label") ?? item.textContent) === text);
   if (!found) throw new Error(`Botão ausente: ${text}`);
   return found;
 }
@@ -43,6 +44,57 @@ function input(label: string): HTMLInputElement {
 }
 
 describe("fluxo visual da fatura", () => {
+  it("mostra lixeira sem texto na primeira célula e preserva oito campos na ordem de saída", async () => {
+    const { root, controller, writeText } = mount();
+    await controller.loadFile(file);
+    const row = root.querySelector<HTMLTableRowElement>("tbody tr")!;
+    const remove = button("Excluir linha 1");
+    expect(row.cells).toHaveLength(9);
+    expect(row.cells[0]?.querySelector("button")).toBe(remove);
+    expect(row.cells[0]?.querySelector("input")).toBeNull();
+    expect(remove.textContent).toBe("");
+    expect(remove.querySelector('svg[aria-hidden="true"] path')).not.toBeNull();
+    expect(remove.type).toBe("button");
+    remove.focus();
+    expect(document.activeElement).toBe(remove);
+    expect(Array.from(row.cells).slice(1).map((cell) =>
+      cell.querySelector("input")?.getAttribute("aria-label"))).toEqual([
+      "Data, linha 1", "Histórico, linha 1", "Moeda de origem, linha 1", "US$, linha 1",
+      "Cotação US$, linha 1", "R$, linha 1", "Parcela, linha 1", "Valor, linha 1",
+    ]);
+    button("Copiar tabela").click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect(writeText.mock.calls[0]?.[0]).toBe(
+      "Data\tHistórico\tMoeda de origem\tUS$\tCotação US$\tR$\tParcela\tValor\n" +
+      "03/01/2026\tCOMPRA SINTÉTICA\t\t\t\t470\t1/1\t470",
+    );
+  });
+
+  it("reindexa o nome da lixeira sem recriar a linha restante nem perder seu rascunho", async () => {
+    const { root, controller, writeText } = mount({ secondRow: true });
+    await controller.loadFile(file);
+    const survivingRow = root.querySelectorAll("tbody tr")[1]!;
+    const survivingRemove = button("Excluir linha 2");
+    const amount = input("R$, linha 2");
+    amount.value = "12,";
+    amount.dispatchEvent(new Event("input", { bubbles: true }));
+    const remove = button("Excluir linha 1");
+    expect(root.querySelector("tbody tr")?.firstElementChild?.contains(remove)).toBe(true);
+    remove.click();
+    expect(root.querySelector("tbody tr")).toBe(survivingRow);
+    expect(button("Excluir linha 1")).toBe(survivingRemove);
+    expect(survivingRemove.textContent).toBe("");
+    expect(input("R$, linha 1")).toBe(amount);
+    expect(amount.value).toBe("12,");
+    expect(amount.getAttribute("aria-invalid")).toBe("true");
+    button("Copiar tabela").click();
+    expect(writeText).not.toHaveBeenCalled();
+    button("Restaurar extração original").click();
+    expect(root.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(input("R$, linha 2").value).toBe("235");
+    expect(button("Excluir linha 2").getAttribute("aria-label")).toBe("Excluir linha 2");
+  });
+
   it("aceita seleção de PDF e exibe resumo com oito colunas acessíveis", async () => {
     const { root, controller } = mount();
     const picker = root.querySelector<HTMLInputElement>('input[type="file"]')!;

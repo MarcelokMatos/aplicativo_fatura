@@ -28,9 +28,13 @@ export function transactionTable(controller: InvoiceController) {
   wrapper.setAttribute("aria-label", "Lançamentos editáveis; role horizontalmente para revisar as oito colunas");
   wrapper.tabIndex = 0;
   const table = document.createElement("table");
+  table.className = "transaction-table";
   const caption = table.createCaption();
   caption.textContent = "Revise as oito colunas. Datas: dd/mm/aaaa. Decimais: vírgula. Excluir remove somente a linha indicada.";
   const header = table.createTHead().insertRow();
+  const controlHeader = header.insertCell();
+  controlHeader.className = "row-control";
+  controlHeader.setAttribute("aria-hidden", "true");
   for (const label of OUTPUT_HEADERS) {
     const cell = document.createElement("th");
     cell.scope = "col";
@@ -66,7 +70,7 @@ export function transactionTable(controller: InvoiceController) {
     view.element.className = issues.length ? "suspect" : "";
     view.warning.textContent = issues.length ? `Linha suspeita: ${issues.join("; ")}` : "";
     view.warning.hidden = !issues.length;
-    view.remove.textContent = `Excluir linha ${view.index + 1}`;
+    view.remove.setAttribute("aria-label", `Excluir linha ${view.index + 1}`);
   }
   function createRow(transaction: InvoiceTransaction, index: number, id: number): RowView {
     const row = document.createElement("tr");
@@ -76,10 +80,28 @@ export function transactionTable(controller: InvoiceController) {
     row.setAttribute("aria-describedby", warning.id);
     const remove = document.createElement("button");
     remove.type = "button";
+    remove.className = "delete-row";
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("width", "18");
+    icon.setAttribute("height", "18");
+    icon.setAttribute("aria-hidden", "true");
+    icon.setAttribute("focusable", "false");
+    icon.setAttribute("fill", "none");
+    icon.setAttribute("stroke", "currentColor");
+    icon.setAttribute("stroke-width", "2");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7");
+    icon.append(path);
+    remove.append(icon);
+    const control = row.insertCell();
+    control.className = "row-control";
+    control.append(remove);
     const view: RowView = { element: row, index, transaction, editors: new Map(), drafts: new Map(), warning, remove };
     remove.addEventListener("click", () => controller.deleteRow(view.index));
-    fields.forEach((field, column) => {
+    fields.forEach((field) => {
       const cell = row.insertCell();
+      cell.dataset.field = field;
       const editor = document.createElement("input");
       const raw = transaction[field];
       editor.type = "text";
@@ -102,7 +124,7 @@ export function transactionTable(controller: InvoiceController) {
         refreshMessage();
       });
       cell.append(editor);
-      if (field === "history") cell.append(remove, warning);
+      if (field === "history") cell.append(warning);
     });
     return view;
   }

@@ -56,13 +56,15 @@ button:disabled { cursor: default; opacity: 0.6; }
 dt { font-size: 0.9rem; }
 dd { font-weight: 600; margin: 0.25rem 0 0; }
 .table-scroll { overflow-x: auto; max-width: 100%; border: 1px solid #687b8a; }
-table { border-collapse: collapse; width: 100%; min-width: 76rem; background: #fff; }
+.transaction-table { border-collapse: collapse; width: 100%; min-width: 76rem; background: #fff; font-size: 0.875rem; line-height: 1.25; }
 caption { text-align: left; padding: 0.75rem; }
 th { position: sticky; top: 0; background: #e8eef3; text-align: left; }
-th, td { padding: 0.6rem; border-bottom: 1px solid #c5d0d8; vertical-align: top; }
-td input { width: 8rem; border: 1px solid #687b8a; border-radius: 0.2rem; padding: 0.4rem; margin: 0; }
-td:nth-child(2) input { width: 17rem; }
-td button { margin-top: 0.5rem; font-size: 0.85rem; }
+.transaction-table th, .transaction-table td { padding: 0.25rem; border-bottom: 1px solid #c5d0d8; vertical-align: top; }
+.transaction-table td input { width: 8rem; border: 1px solid #687b8a; border-radius: 0.2rem; padding: 0.25rem; margin: 0; }
+.transaction-table [data-field="history"] input { width: 17rem; }
+.transaction-table .row-control { width: 1%; white-space: nowrap; }
+.delete-row { display: inline-flex; align-items: center; justify-content: center; min-width: 2rem; min-height: 2rem; padding: 0.25rem; margin: 0; }
+.transaction-table .warning { margin: 0.25rem 0 0; }
 .warning { color: #752500; }
 .success { color: #155c2c; font-weight: 600; }
 .suspect { background: #fff4dd; }
@@ -70,4 +72,10 @@ td button { margin-top: 0.5rem; font-size: 0.85rem; }
 .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
 .diagnostics { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 textarea { width: 100%; min-height: 12rem; white-space: pre; }
-@media (max-width: 40rem) { main { padding: 1rem 0.75rem; } .upload-area { padding: 1rem; } .actions button { min-height: 2.75rem; } }
+@media (max-width: 40rem) {
+  main { padding: 1rem 0.75rem; }
+  .upload-area { padding: 1rem; }
+  .actions button { min-height: 2.75rem; }
+  .delete-row { min-width: 2.75rem; min-height: 2.75rem; }
+  .transaction-table td input { min-height: 2.75rem; font-size: 1rem; }
+}
