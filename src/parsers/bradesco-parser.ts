@@ -48,6 +48,28 @@ function hasCompactTableMarker(lines: PdfTextLine[]): boolean {
   return lines.some((line) => /^total para\b/.test(normalizeLayoutText(line.text)));
 }
 
+function joinSplitInstallmentContinuation(
+  history: string,
+  line: PdfTextLine,
+  nextLine: PdfTextLine | undefined,
+  columns: BradescoColumns,
+): string {
+  if (!columns.compact || !nextLine || !hasInvalidInstallmentSuffix(history) || nextLine.items.length !== 1) {
+    return history;
+  }
+  const item = nextLine.items[0]!;
+  const token = item.text.trim();
+  if (!/^\d{1,2}$/.test(token)) return history;
+  const historyStart = (columns.date + columns.history) / 2;
+  const historyEnd = (columns.history + columns.usdRate) / 2;
+  if (item.x < historyStart || item.x >= historyEnd) return history;
+  const distance = line.y - nextLine.y;
+  const maxHeight = Math.max(...line.items.map(({ height }) => Math.abs(height)), Math.abs(item.height));
+  if (distance <= 2 || distance > maxHeight * 2) return history;
+  const combined = `${history}${token}`;
+  return extractInstallment(combined).history === combined ? history : combined;
+}
+
 export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
   const sortedPages = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
   const pageLines = sortedPages.map((page) => groupTextItemsIntoLines(page));
@@ -141,6 +163,9 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
         continue;
       }
 
+      const history = cells.historyAmbiguous
+        ? cells.history
+        : joinSplitInstallmentContinuation(cells.history, line, page[lineIndex + 1], columns);
       const warnings: string[] = [];
       const diagnose = (code: string, message: string, severity: ParserDiagnostic["severity"] = "error") => {
         if (!warnings.includes(code)) {
@@ -169,12 +194,12 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
       const brl = amount("brl");
       const value = chooseTransactionValue(brl, originalCurrency);
       if (value === null) diagnose("MISSING_TRANSACTION_VALUE", "Lançamento sem valor utilizável; revise a linha.");
-      if (hasInvalidInstallmentSuffix(cells.history)) {
+      if (hasInvalidInstallmentSuffix(history)) {
         diagnose("INVALID_INSTALLMENT_SUFFIX", "Sufixo de parcela inválido; revise a linha preservada.", "warning");
       }
       const installment = cells.historyAmbiguous
         ? { history: cells.history, installment: "1/1" }
-        : extractInstallment(cells.history);
+        : extractInstallment(history);
       result.transactions.push({
         date, ...installment, originalCurrency, usd, usdRate, brl, value: value ?? Number.NaN,
         source: { page: line.page, line: line.line }, warnings,

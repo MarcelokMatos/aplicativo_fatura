@@ -4,6 +4,64 @@ import { compactHistoryInvoice } from "./fixtures/bradesco-compact.synthetic";
 import { singleTableInvoice } from "./fixtures/bradesco-invoice.synthetic";
 
 describe("histórico, localidade e parcela no layout compacto sintético", () => {
+  it("recompõe parcela dividida em continuação exclusiva e preserva quantidade e ordem", () => {
+    const result = parseBradescoInvoice(compactHistoryInvoice([
+      [[20, "05/01"], [70, "LOJA INVENTADA06/0"], [290, "CIDADE SINTÉTICA"], [450, "10,00"]],
+      [[70, "6"]],
+      [[20, "06/01"], [70, "OUTRA LOJA INVENTADA"], [290, "OUTRA CIDADE"], [450, "20,00"]],
+    ]));
+
+    expect(result.transactions).toHaveLength(2);
+    expect(result.transactions.map(({ history, installment, value, warnings }) =>
+      ({ history, installment, value, warnings }))).toEqual([
+      { history: "LOJA INVENTADA", installment: "6/6", value: 10, warnings: [] },
+      { history: "OUTRA LOJA INVENTADA", installment: "1/1", value: 20, warnings: [] },
+    ]);
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  it.each([
+    ["histórico sem sufixo inválido", "LOJA INVENTADA", [[70, "6"]], []],
+    ["concatenação ainda inválida", "LOJA INVENTADA06/0", [[70, "0"]], ["INVALID_INSTALLMENT_SUFFIX"]],
+    ["alinhamento fora da faixa", "LOJA INVENTADA06/0", [[20, "6"]], ["INVALID_INSTALLMENT_SUFFIX"]],
+    ["continuação com mais de um item", "LOJA INVENTADA06/0", [[70, "6"], [290, "LOCAL"]], ["INVALID_INSTALLMENT_SUFFIX"]],
+    ["caminho com barra ambígua", "LOJA/06/0", [[70, "6"]], []],
+  ] as const)("não consome %s", (_case, history, continuation, warnings) => {
+    const result = parseBradescoInvoice(compactHistoryInvoice([
+      [[20, "05/01"], [70, history], [290, "CIDADE SINTÉTICA"], [450, "10,00"]],
+      continuation,
+    ]));
+
+    expect(result.transactions).toHaveLength(1);
+    expect(result.transactions[0]).toMatchObject({ history, installment: "1/1", warnings });
+  });
+
+  it("não consome continuação geometricamente distante", () => {
+    const pages = compactHistoryInvoice([
+      [[20, "05/01"], [70, "LOJA INVENTADA06/0"], [290, "CIDADE SINTÉTICA"], [450, "10,00"]],
+      [[70, "6"]],
+    ]);
+    pages[0]!.items.find((item) => item.text === "6")!.y -= 21;
+
+    const result = parseBradescoInvoice(pages);
+    expect(result.transactions[0]).toMatchObject({
+      history: "LOJA INVENTADA06/0", installment: "1/1", warnings: ["INVALID_INSTALLMENT_SUFFIX"],
+    });
+  });
+
+  it("não usa a próxima linha datada como continuação", () => {
+    const result = parseBradescoInvoice(compactHistoryInvoice([
+      [[20, "05/01"], [70, "LOJA INVENTADA06/0"], [290, "CIDADE SINTÉTICA"], [450, "10,00"]],
+      [[20, "06/01"], [70, "6"], [450, "20,00"]],
+    ]));
+
+    expect(result.transactions).toHaveLength(2);
+    expect(result.transactions[0]).toMatchObject({
+      history: "LOJA INVENTADA06/0", installment: "1/1", warnings: ["INVALID_INSTALLMENT_SUFFIX"],
+    });
+    expect(result.transactions[1]).toMatchObject({ history: "6", installment: "1/1" });
+  });
+
   it.each([
     ["SESI FARMACIA FM 57402/02", "SESI FARMACIA FM 574", "2/2"],
     ["ASSOCIACAO CONGREGAC06/10", "ASSOCIACAO CONGREGAC", "6/10"],
