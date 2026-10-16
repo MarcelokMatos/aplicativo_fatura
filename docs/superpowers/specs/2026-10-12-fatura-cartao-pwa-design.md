@@ -152,7 +152,11 @@ Estornos e créditos que sejam lançamentos reais devem permanecer com sinal neg
 ### Parcelas
 
 - Reconhecer parcela somente quando houver um token completo no padrão `n/n` associado ao final ou à parte estruturada do histórico.
+- A busca deve ocorrer da direita para a esquerda no segmento relevante e aceitar parcela colada ao final da descrição.
+- Ao encontrar a última barra, considerar como parcela no máximo os dois dígitos imediatamente anteriores e os dois imediatamente posteriores, validando `1 <= atual <= total`; dígitos anteriores permanecem no histórico.
+- Exemplos sintéticos: `SESI FARMACIA FM 57402/02` resulta em `Histórico = SESI FARMACIA FM 574` e `Parcela = 2/2`; `ASSOCIACAO CONGREGAC06/10` resulta em `Histórico = ASSOCIACAO CONGREGAC` e `Parcela = 6/10`.
 - Não tratar qualquer barra presente em um nome ou texto como parcela.
+- Barras internas ou sufixos numéricos inválidos, não terminais ou fora da região estruturada de parcela devem permanecer no histórico.
 - Normalizar zeros à esquerda quando necessário.
 - Usar `1/1` quando não houver parcelamento reconhecido.
 - Não calcular nem projetar a próxima parcela na V1.
@@ -184,6 +188,9 @@ Regras:
 
 - Ordem fixa das oito colunas.
 - Uma linha por lançamento.
+- A coluna `Parcela` deve ser copiada como texto literal para impedir conversão automática em data pelo Excel ou Google Sheets.
+- No texto tabulado, prefixar a parcela com apóstrofo, por exemplo `'1/3`; esse marcador existe somente na exportação, não no domínio nem na tabela visível, e não constitui fórmula.
+- A colagem deve exibir `1/3`, sem converter para data como `01/mar`; validar o comportamento no Excel e no Google Sheets.
 - Datas no formato `dd/MM/yyyy`.
 - Valores decimais usando vírgula na saída destinada à planilha.
 - Células opcionais vazias, sem os textos `null` ou `undefined`.
@@ -210,6 +217,8 @@ Regras:
 - Tabela com as oito colunas.
 
 A tabela deve privilegiar alta densidade de conferência: fonte, espaçamentos, altura de campos e padding devem ser compactos sem prejudicar legibilidade, foco visível ou operação por toque em tela pequena.
+
+As larguras devem refletir o conteúdo de cada campo, sem aplicar a mesma largura a todas as entradas. Referência para desktop: `Data` 6,75 rem; `Histórico` flexível com mínimo de 18 rem; `Moeda de origem` 7 rem; `US$` 5 rem; `Cotação US$` 6,5 rem; `R$` 6 rem; `Parcela` 4,5 rem; `Valor` 6 rem. Cabeçalhos podem quebrar linha; em tela pequena, manter rolagem horizontal e alvos de toque adequados.
 
 Cada lançamento deve apresentar uma ação de exclusão por ícone de lixeira em uma área de controle à esquerda. Essa área não integra as oito colunas de dados nem a saída copiada. O ícone deve manter nome acessível equivalente a `Excluir linha N` e área de toque adequada.
 
@@ -250,6 +259,7 @@ Inclusão manual de novas linhas não faz parte da V1. Uma linha ausente deve se
 - Valores negativos.
 - Inferência de ano.
 - Reconhecimento de parcelas.
+- Parcela terminal colada à descrição, inclusive com dígitos anteriores que permanecem no histórico.
 - Falso positivo de barra no histórico.
 - Coalescência entre `R$` e `Moeda de origem`.
 - Serialização tabulada.
@@ -273,6 +283,7 @@ Inclusão manual de novas linhas não faz parte da V1. Uma linha ausente deve se
 - Aviso de conciliação.
 - Cópia para Excel.
 - Cópia para Google Sheets.
+- Colagem de `Parcela` como texto, sem conversão automática para data.
 - Layout em tela pequena.
 - Reabertura offline após o primeiro carregamento.
 
@@ -284,7 +295,7 @@ A V1 estará homologada quando:
 2. O total líquido extraído reconciliar com a fatura dentro de R$ 0,01.
 3. Estornos e créditos preservarem o sinal.
 4. Parcelas forem reconhecidas corretamente sem falsos positivos conhecidos, e o histórico contiver somente o estabelecimento ou evento, sem localidade estrutural separada.
-5. A tabela copiada puder ser colada sem reorganização das colunas.
+5. A tabela copiada puder ser colada sem reorganização das colunas e sem converter `Parcela` em data.
 6. O fluxo completo funcionar em pelo menos um Android e um computador.
 7. O PDF não aparecer em requisições de rede nem em armazenamento persistente.
 8. Os testes automatizados críticos estiverem aprovados.
