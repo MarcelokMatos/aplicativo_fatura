@@ -66,6 +66,22 @@ describe("histórico, localidade e parcela no layout compacto sintético", () =>
     expect(result.diagnostics).toEqual([expect.objectContaining({ code: "AMBIGUOUS_HISTORY_LOCALITY", severity: "warning" })]);
   });
 
+  it("combina os diagnósticos de localidade ambígua e sufixo de parcela inválido", () => {
+    const result = parseBradescoInvoice(compactHistoryInvoice([
+      [[20, "05/01"], [70, "LOJA INVENTADA"], [260, "LOCAL"], [280, "06/0"], [450, "10,00"]],
+    ]));
+
+    expect(result.transactions[0]).toMatchObject({
+      history: "LOJA INVENTADA LOCAL 06/0",
+      installment: "1/1",
+      warnings: ["AMBIGUOUS_HISTORY_LOCALITY", "INVALID_INSTALLMENT_SUFFIX"],
+    });
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({ code: "AMBIGUOUS_HISTORY_LOCALITY", severity: "warning" }),
+      expect.objectContaining({ code: "INVALID_INSTALLMENT_SUFFIX", severity: "warning" }),
+    ]);
+  });
+
   it("mantém palavras semelhantes a cidades dentro do nome fragmentado do estabelecimento", () => {
     const result = parseBradescoInvoice(compactHistoryInvoice([
       [[20, "05/01"], [70, "PORTO"], [94, "SEGURO"], [290, "PORTO"], [450, "10,00"]],

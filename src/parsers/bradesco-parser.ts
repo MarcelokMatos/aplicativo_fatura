@@ -169,7 +169,7 @@ export function parseBradescoInvoice(pages: PdfPageText[]): ParsedInvoice {
       const brl = amount("brl");
       const value = chooseTransactionValue(brl, originalCurrency);
       if (value === null) diagnose("MISSING_TRANSACTION_VALUE", "Lançamento sem valor utilizável; revise a linha.");
-      if (!cells.historyAmbiguous && hasInvalidInstallmentSuffix(cells.history)) {
+      if (hasInvalidInstallmentSuffix(cells.history)) {
         diagnose("INVALID_INSTALLMENT_SUFFIX", "Sufixo de parcela inválido; revise a linha preservada.", "warning");
       }
       const installment = cells.historyAmbiguous

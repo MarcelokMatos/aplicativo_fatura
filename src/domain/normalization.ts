@@ -57,12 +57,21 @@ function terminalInstallmentCandidate(history: string): {
   total: number;
   valid: boolean;
 } | null {
-  const match = /(\d{1,2})\/(\d{1,2})\s*$/.exec(history);
+  const terminal = history.trimEnd();
+  const slashIndex = terminal.lastIndexOf("/");
+  if (slashIndex < 0) return null;
+  const totalText = terminal.slice(slashIndex + 1);
+  if (!/^\d*$/.test(totalText)) return null;
+  const currentRun = /(\d+)$/.exec(terminal.slice(0, slashIndex))?.[1];
+  if (!currentRun) return null;
+  const currentText = currentRun.slice(-2);
+  const index = slashIndex - currentText.length;
   // Uma barra colada à sequência numérica indica caminho ambíguo, não parcela.
-  if (!match || /\/\d*$/.test(history.slice(0, match.index))) return null;
-  const current = Number(match[1]);
-  const total = Number(match[2]);
-  return { index: match.index, current, total, valid: current >= 1 && current <= total };
+  if (/\/\d*$/.test(terminal.slice(0, index))) return null;
+  const current = Number(currentText);
+  const total = Number(totalText);
+  const valid = totalText.length >= 1 && totalText.length <= 2 && current >= 1 && current <= total;
+  return { index, current, total, valid };
 }
 
 export function chooseTransactionValue(

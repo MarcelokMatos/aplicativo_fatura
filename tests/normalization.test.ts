@@ -86,7 +86,7 @@ describe("extractInstallment", () => {
 
   it.each([
     "LOJA A/B", "LOJA 02/10 CENTRO", "LOJA/02/10", "LOJA/102/10",
-    "LOJA 102/110", "LOJA06/100", "LOJA 00/10", "LOJA00/10",
+    "LOJA 102/110", "LOJA06/", "LOJA06/100", "LOJA 00/10", "LOJA00/10",
     "LOJA 01/00", "LOJA01/00", "LOJA 11/10", "LOJA11/10", "LOJA", "",
   ])(
     "mantém %j e usa 1/1 sem parcela terminal válida",
@@ -97,12 +97,18 @@ describe("extractInstallment", () => {
 });
 
 describe("hasInvalidInstallmentSuffix", () => {
-  it.each(["LOJA INVENTADA06/0", "LOJA 00/10", "LOJA 11/10", "LOJA 01/00"])(
+  it.each([
+    "LOJA INVENTADA06/0", "LOJA06/", "LOJA06/100", "LOJA 102/110",
+    "LOJA 00/10", "LOJA 11/10", "LOJA 01/00",
+  ])(
     "sinaliza somente candidato terminal numericamente inválido em %j",
     (history) => expect(hasInvalidInstallmentSuffix(history)).toBe(true),
   );
 
-  it.each(["LOJA 02/10", "LOJA/02/10", "LOJA A/B", "LOJA 02/10 CENTRO", "LOJA 102/110"])(
+  it.each([
+    "LOJA 02/10", "LOJA123/30", "LOJA/02/10", "LOJA/102/10", "LOJA A/B",
+    "LOJA 02/10 CENTRO",
+  ])(
     "não sinaliza parcela válida, barra interna ou caminho ambíguo em %j",
     (history) => expect(hasInvalidInstallmentSuffix(history)).toBe(false),
   );
