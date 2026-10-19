@@ -5,6 +5,18 @@ import { build } from "vite";
 import { describe, expect, it } from "vitest";
 
 describe("shell PWA", () => {
+  it("limita permissões do GitHub Pages ao job de deploy", () => {
+    const workflow = readFileSync(".github/workflows/deploy-pages.yml", "utf8");
+    const buildJob = workflow.match(/^  build:\s*\n([\s\S]*?)(?=^  deploy:)/m)?.[1] ?? "";
+    const deployJob = workflow.match(/^  deploy:\s*\n([\s\S]*)$/m)?.[1] ?? "";
+
+    expect(workflow).not.toMatch(/^permissions:/m);
+    expect(buildJob).toMatch(/^    permissions:\s*\n      contents: read$/m);
+    expect(buildJob).not.toMatch(/pages: write|id-token: write|actions\/configure-pages/);
+    expect(deployJob).toMatch(/^    permissions:\s*\n      pages: write\s*\n      id-token: write$/m);
+    expect(deployJob).toContain("actions/configure-pages@v5");
+  });
+
   it("usa raiz local por padrão e aceita VITE_BASE_PATH em publicações", async () => {
     const originalBasePath = process.env.VITE_BASE_PATH;
     const defaultOutDir = resolve(".superpowers/sdd/2026-10-13-fatura-cartao-pwa-v1/task-10-default-base-dist");
