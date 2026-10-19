@@ -2,6 +2,8 @@
 
 PWA para extrair uma fatura Bradesco, revisar lançamentos e copiar valores tabulados. O processamento é local no navegador, sem backend, banco, login, OCR, LLM ou integração direta com Google Sheets. O service worker guarda somente o shell estático; a aplicação não persiste o PDF nem os lançamentos.
 
+> **Status:** <https://marcelokmatos.github.io/aplicativo_fatura/> é uma beta de homologação, ainda não homologada. A publicação serve para testar navegador, instalação e uso offline em dispositivos reais; não representa uma V1 estável.
+
 A saída tem exatamente oito colunas, nesta ordem:
 
 ```text
@@ -27,7 +29,25 @@ npm run typecheck
 npm run build
 ```
 
-O build gera `dist/`; esses comandos não publicam a aplicação. Publicação e integração com serviços externos não fazem parte desta entrega.
+O build gera `dist/`; esses comandos locais não publicam a aplicação. A única publicação preparada nesta etapa é a beta estática para homologação em dispositivos reais.
+
+Para reproduzir o build hospedado no GitHub Pages:
+
+```powershell
+$env:VITE_BASE_PATH = '/aplicativo_fatura/'
+npm run build
+Remove-Item Env:VITE_BASE_PATH
+```
+
+O workflow de GitHub Pages executa instalação limpa, testes, typecheck e build antes de enviar `dist/`. Consulte o [checklist de publicação beta](docs/release-checklist.md). Push e deploy exigem autorização explícita.
+
+## Usar no computador ou Android
+
+No computador, abra a URL beta em um navegador atual, selecione o PDF e revise a conciliação antes de copiar. No Android, abra a mesma URL no Chrome, use **Instalar app** ou **Adicionar à tela inicial** no menu e carregue a aplicação uma vez com internet antes de testar a reabertura offline.
+
+Para colar no Excel ou Google Sheets, selecione **Copiar tabela** e cole na primeira célula vazia. A saída contém oito colunas e a parcela é exportada como texto para não virar data. Se houver divergência, revise os avisos e use **Copiar mesmo assim** somente após confirmação consciente.
+
+O suporte atual se limita a faturas Bradesco com texto extraível e ao layout em homologação. PDFs digitalizados, outros bancos e layouts ainda não homologados não são suportados.
 
 ## Homologação privada
 

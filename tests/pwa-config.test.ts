@@ -5,6 +5,27 @@ import { build } from "vite";
 import { describe, expect, it } from "vitest";
 
 describe("shell PWA", () => {
+  it("usa raiz local por padrão e aceita VITE_BASE_PATH em publicações", async () => {
+    const originalBasePath = process.env.VITE_BASE_PATH;
+    const defaultOutDir = resolve(".superpowers/sdd/2026-10-13-fatura-cartao-pwa-v1/task-10-default-base-dist");
+    const pagesOutDir = resolve(".superpowers/sdd/2026-10-13-fatura-cartao-pwa-v1/task-10-pages-base-dist");
+
+    try {
+      delete process.env.VITE_BASE_PATH;
+      await build({ configFile: resolve("vite.config.ts"), logLevel: "silent", build: { outDir: defaultOutDir, emptyOutDir: true } });
+      expect(readFileSync(resolve(defaultOutDir, "index.html"), "utf8")).toContain('src="/assets/');
+
+      process.env.VITE_BASE_PATH = "/aplicativo_fatura/";
+      await build({ configFile: resolve("vite.config.ts"), logLevel: "silent", build: { outDir: pagesOutDir, emptyOutDir: true } });
+      const pagesHtml = readFileSync(resolve(pagesOutDir, "index.html"), "utf8");
+      expect(pagesHtml).toContain('src="/aplicativo_fatura/assets/');
+      expect(pagesHtml).toContain('src="/aplicativo_fatura/registerSW.js"');
+    } finally {
+      if (originalBasePath === undefined) delete process.env.VITE_BASE_PATH;
+      else process.env.VITE_BASE_PATH = originalBasePath;
+    }
+  }, 30_000);
+
   it("vincula o manifesto à página inicial", () => {
     const page = new DOMParser().parseFromString(readFileSync("index.html", "utf8"), "text/html");
     expect(page.querySelector('link[rel="manifest"]')?.getAttribute("href")).toBe("./manifest.webmanifest");
